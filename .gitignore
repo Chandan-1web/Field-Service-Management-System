@@ -1,0 +1,17 @@
+target/
+.idea/
+.vscode/
+*.iml
+*.class
+*.log
+
+# Environment and secrets
+.env
+application-local.properties
+application-secret.properties
+
+# OS files
+.DS_Store
+Thumbs.db
+
+uploads/
