@@ -1,11 +1,13 @@
 package com.fieldservicemanagement.controller;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.fieldservicemanagement.dto.LoginRequest;
 import com.fieldservicemanagement.dto.LoginResponse;
@@ -29,6 +31,17 @@ public class AuthController {
 
     @GetMapping("/me")
     public String me(@AuthenticationPrincipal User user) {
-        return "Logged in as: " + user.getEmail() + " | Role: " + user.getRole();
+
+        if (user == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Authentication is required"
+            );
+        }
+
+        return "Logged in as: "
+                + user.getEmail()
+                + " | Role: "
+                + user.getRole();
     }
 }
