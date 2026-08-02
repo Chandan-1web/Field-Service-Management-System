@@ -15,3 +15,10 @@ application-secret.properties
 Thumbs.db
 
 uploads/
+
+# React Frontend
+field-service-frontend/node_modules/
+field-service-frontend/dist/
+field-service-frontend/.env
+field-service-frontend/.env.*
+field-service-frontend/*.local
