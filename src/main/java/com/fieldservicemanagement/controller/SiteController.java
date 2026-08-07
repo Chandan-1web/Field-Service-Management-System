@@ -17,31 +17,49 @@ import com.fieldservicemanagement.service.SiteService;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/api/customers")
+@RequestMapping("/api")
 public class SiteController {
 
     private final SiteService siteService;
 
-    public SiteController(SiteService siteService) {
+    public SiteController(
+            SiteService siteService) {
+
         this.siteService = siteService;
     }
 
-    @PostMapping("/{customerId}/sites")
-    @PreAuthorize("hasAnyRole('DISPATCHER', 'MANAGER')")
+    @PostMapping("/customers/{customerId}/sites")
+    @PreAuthorize(
+            "hasAnyRole('DISPATCHER', 'MANAGER')"
+    )
     public SiteResponse create(
             @PathVariable Long customerId,
-            @Valid @RequestBody SiteRequest request) {
+            @Valid
+            @RequestBody
+            SiteRequest request) {
 
         request.setCustomerId(customerId);
 
         return siteService.create(request);
     }
 
-    @GetMapping("/{customerId}/sites")
-    @PreAuthorize("hasAnyRole('DISPATCHER', 'MANAGER')")
+    @GetMapping("/customers/{customerId}/sites")
+    @PreAuthorize(
+            "hasAnyRole('DISPATCHER', 'MANAGER')"
+    )
     public List<SiteResponse> getByCustomer(
             @PathVariable Long customerId) {
 
-        return siteService.getByCustomer(customerId);
+        return siteService
+                .getByCustomer(customerId);
+    }
+
+    @GetMapping("/sites")
+    @PreAuthorize(
+            "hasAnyRole('DISPATCHER', 'MANAGER')"
+    )
+    public List<SiteResponse> getAll() {
+
+        return siteService.getAll();
     }
 }

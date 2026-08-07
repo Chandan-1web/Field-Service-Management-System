@@ -1,0 +1,5 @@
+ALTER TABLE users
+    ADD COLUMN phone_number VARCHAR(20) NULL,
+    ADD COLUMN department VARCHAR(100) NULL,
+    ADD COLUMN profile_photo VARCHAR(500) NULL,
+    ADD COLUMN last_login DATETIME NULL;

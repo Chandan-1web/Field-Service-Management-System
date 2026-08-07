@@ -2,9 +2,17 @@ import { Navigate, Route, Routes } from "react-router-dom";
 
 import LoginPage from "./pages/auth/LoginPage";
 import DashboardPage from "./pages/dashboard/DashboardPage";
+import CustomersPage from "./pages/customers/CustomersPage";
+import CustomerDetailsPage from "./pages/customers/CustomerDetailsPage";
+import SitesPage from "./pages/sites/SitesPage";
+import WorkOrdersPage from "./pages/workorders/WorkOrdersPage";
+import MyJobsPage from "./pages/technician/MyJobsPage";
+import InventoryPage from "./pages/inventory/InventoryPage";
+import ReportsPage from "./pages/reports/ReportsPage";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import AppLayout from "./layouts/AppLayout";
 import { useAuth } from "./hooks/useAuth";
+import ProfilePage from "./pages/profile/ProfilePage";
 
 function PlaceholderPage({ title }) {
   return (
@@ -12,7 +20,9 @@ function PlaceholderPage({ title }) {
       <p className="text-sm font-bold uppercase tracking-[0.18em] text-violet-600">
         Module
       </p>
+
       <h1 className="mt-2 text-3xl font-black text-slate-950">{title}</h1>
+
       <p className="mt-3 text-slate-500">
         This module will be connected to the Spring Boot backend in the upcoming
         steps.
@@ -40,21 +50,32 @@ function UnauthorizedPage() {
 }
 
 function App() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+
+  const getHomePath = () => {
+    if (!isAuthenticated) {
+      return "/login";
+    }
+
+    if (user?.role === "TECHNICIAN") {
+      return "/my-jobs";
+    }
+
+    return "/dashboard";
+  };
 
   return (
     <Routes>
-      <Route
-        path="/"
-        element={
-          <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />
-        }
-      />
+      <Route path="/" element={<Navigate to={getHomePath()} replace />} />
 
       <Route
         path="/login"
         element={
-          isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />
+          isAuthenticated ? (
+            <Navigate to={getHomePath()} replace />
+          ) : (
+            <LoginPage />
+          )
         }
       />
 
@@ -62,37 +83,24 @@ function App() {
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<DashboardPage />} />
 
-          <Route
-            path="/customers"
-            element={<PlaceholderPage title="Customers" />}
-          />
-
-          <Route path="/sites" element={<PlaceholderPage title="Sites" />} />
+          <Route path="/customers" element={<CustomersPage />} />
 
           <Route
-            path="/work-orders"
-            element={<PlaceholderPage title="Work Orders" />}
+            path="/customers/:customerId"
+            element={<CustomerDetailsPage />}
           />
 
-          <Route
-            path="/inventory"
-            element={<PlaceholderPage title="Inventory" />}
-          />
+          <Route path="/sites" element={<SitesPage />} />
 
-          <Route
-            path="/reports"
-            element={<PlaceholderPage title="Reports" />}
-          />
+          <Route path="/work-orders" element={<WorkOrdersPage />} />
 
-          <Route
-            path="/profile"
-            element={<PlaceholderPage title="Profile" />}
-          />
+          <Route path="/my-jobs" element={<MyJobsPage />} />
 
-          <Route
-            path="/my-jobs"
-            element={<PlaceholderPage title="My Jobs" />}
-          />
+          <Route path="/inventory" element={<InventoryPage />} />
+
+          <Route path="/reports" element={<ReportsPage />} />
+
+          <Route path="/profile" element={<ProfilePage />} />
 
           <Route
             path="/time-logs"
@@ -113,12 +121,7 @@ function App() {
 
       <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
-      <Route
-        path="*"
-        element={
-          <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />
-        }
-      />
+      <Route path="*" element={<Navigate to={getHomePath()} replace />} />
     </Routes>
   );
 }

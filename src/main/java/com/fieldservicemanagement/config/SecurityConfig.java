@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.Customizer;
@@ -29,8 +30,11 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
 
-    public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
-        this.jwtAuthFilter = jwtAuthFilter;
+    public SecurityConfig(
+            JwtAuthFilter jwtAuthFilter) {
+
+        this.jwtAuthFilter =
+                jwtAuthFilter;
     }
 
     @Bean
@@ -39,27 +43,36 @@ public class SecurityConfig {
     }
 
     @Bean
-    public DaoAuthenticationProvider authenticationProvider(
-            UserDetailsService userDetailsService,
-            PasswordEncoder passwordEncoder) {
+    public DaoAuthenticationProvider
+            authenticationProvider(
+                    UserDetailsService userDetailsService,
+                    PasswordEncoder passwordEncoder) {
 
         DaoAuthenticationProvider provider =
-                new DaoAuthenticationProvider(userDetailsService);
+                new DaoAuthenticationProvider(
+                        userDetailsService
+                );
 
-        provider.setPasswordEncoder(passwordEncoder);
+        provider.setPasswordEncoder(
+                passwordEncoder
+        );
+
         return provider;
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(
-            AuthenticationConfiguration configuration)
-            throws Exception {
+    public AuthenticationManager
+            authenticationManager(
+                    AuthenticationConfiguration configuration)
+                    throws Exception {
 
-        return configuration.getAuthenticationManager();
+        return configuration
+                .getAuthenticationManager();
     }
 
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
+    public CorsConfigurationSource
+            corsConfigurationSource() {
 
         CorsConfiguration configuration =
                 new CorsConfiguration();
@@ -82,12 +95,29 @@ public class SecurityConfig {
                 )
         );
 
-        configuration.setAllowedHeaders(List.of("*"));
-        configuration.setExposedHeaders(
-                List.of("Authorization")
+        configuration.setAllowedHeaders(
+                List.of(
+                        "Authorization",
+                        "Content-Type",
+                        "Accept",
+                        "Origin",
+                        "X-Requested-With"
+                )
         );
-        configuration.setAllowCredentials(true);
-        configuration.setMaxAge(3600L);
+
+        configuration.setExposedHeaders(
+                List.of(
+                        "Authorization"
+                )
+        );
+
+        configuration.setAllowCredentials(
+                true
+        );
+
+        configuration.setMaxAge(
+                3600L
+        );
 
         UrlBasedCorsConfigurationSource source =
                 new UrlBasedCorsConfigurationSource();
@@ -107,37 +137,86 @@ public class SecurityConfig {
             throws Exception {
 
         http
-            .csrf(AbstractHttpConfigurer::disable)
-
-            .cors(Customizer.withDefaults())
-
-            .sessionManagement(session ->
-                session.sessionCreationPolicy(
-                    SessionCreationPolicy.STATELESS
+                .csrf(
+                        AbstractHttpConfigurer::disable
                 )
-            )
 
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers(
-                    "/api/auth/login",
-                    "/swagger-ui/**",
-                    "/v3/api-docs/**"
-                ).permitAll()
+                .cors(
+                        Customizer.withDefaults()
+                )
 
-                .requestMatchers(
-                    org.springframework.http.HttpMethod.OPTIONS,
-                    "/**"
-                ).permitAll()
+                .sessionManagement(
+                        session ->
+                                session.sessionCreationPolicy(
+                                        SessionCreationPolicy.STATELESS
+                                )
+                )
 
-                .anyRequest().authenticated()
-            )
+                .authorizeHttpRequests(
+                        auth -> auth
 
-            .authenticationProvider(authenticationProvider)
+                                // LOGIN + SWAGGER + PROFILE IMAGES
+                                .requestMatchers(
+                                        "/api/auth/login",
+                                        "/swagger-ui/**",
+                                        "/v3/api-docs/**",
+                                        "/uploads/**"
+                                )
+                                .permitAll()
 
-            .addFilterBefore(
-                jwtAuthFilter,
-                UsernamePasswordAuthenticationFilter.class
-            );
+                                // CORS PREFLIGHT
+                                .requestMatchers(
+                                        HttpMethod.OPTIONS,
+                                        "/**"
+                                )
+                                .permitAll()
+
+                                // PROFILE PHOTO UPLOAD
+                                .requestMatchers(
+                                        HttpMethod.POST,
+                                        "/api/users/me/profile-photo"
+                                )
+                                .authenticated()
+
+                                // PROFILE PHOTO DELETE
+                                .requestMatchers(
+                                        HttpMethod.DELETE,
+                                        "/api/users/me/profile-photo"
+                                )
+                                .authenticated()
+
+                                // PROFILE
+                                .requestMatchers(
+                                        HttpMethod.GET,
+                                        "/api/users/me"
+                                )
+                                .authenticated()
+
+                                .requestMatchers(
+                                        HttpMethod.PUT,
+                                        "/api/users/me"
+                                )
+                                .authenticated()
+
+                                // CHANGE PASSWORD
+                                .requestMatchers(
+                                        HttpMethod.PUT,
+                                        "/api/users/change-password"
+                                )
+                                .authenticated()
+
+                                .anyRequest()
+                                .authenticated()
+                )
+
+                .authenticationProvider(
+                        authenticationProvider
+                )
+
+                .addFilterBefore(
+                        jwtAuthFilter,
+                        UsernamePasswordAuthenticationFilter.class
+                );
 
         return http.build();
     }

@@ -31,22 +31,56 @@ public class User implements UserDetails {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 100)
+    @Column(
+            nullable = false,
+            length = 100
+    )
     private String name;
 
-    @Column(nullable = false, unique = true, length = 150)
+    @Column(
+            nullable = false,
+            unique = true,
+            length = 150
+    )
     private String email;
 
+    @Column(
+            name = "phone_number",
+            length = 20
+    )
+    private String phoneNumber;
+
+    @Column(
+            length = 100
+    )
+    private String department;
+
+    @Column(
+            name = "profile_photo",
+            length = 500
+    )
+    private String profilePhoto;
+
     @JsonIgnore
-    @Column(name = "password_hash", nullable = false)
+    @Column(
+            name = "password_hash",
+            nullable = false
+    )
     private String passwordHash;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(
+            nullable = false,
+            length = 20
+    )
     private Role role;
 
     @Column(name = "created_at")
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private LocalDateTime createdAt =
+            LocalDateTime.now();
+
+    @Column(name = "last_login")
+    private LocalDateTime lastLogin;
 
     public enum Role {
         DISPATCHER,
@@ -57,7 +91,9 @@ public class User implements UserDetails {
 
     @Override
     @JsonIgnore
-    public Collection<? extends GrantedAuthority> getAuthorities() {
+    public Collection<? extends GrantedAuthority>
+            getAuthorities() {
+
         return List.of(
                 new SimpleGrantedAuthority(
                         "ROLE_" + role.name()
