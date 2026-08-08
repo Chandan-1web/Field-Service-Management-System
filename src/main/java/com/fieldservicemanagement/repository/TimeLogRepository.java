@@ -14,11 +14,15 @@ public interface TimeLogRepository
     List<TimeLog> findByWorkOrderId(
             Long workOrderId);
 
+    List<TimeLog> findByTechnicianIdOrderByLoggedAtDesc(
+            Long technicianId);
+
     @Query("""
             SELECT COALESCE(SUM(t.minutes), 0)
             FROM TimeLog t
             WHERE t.technician.id = :technicianId
             """)
     Long getTotalMinutesByTechnicianId(
-            @Param("technicianId") Long technicianId);
+            @Param("technicianId")
+            Long technicianId);
 }

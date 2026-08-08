@@ -75,6 +75,12 @@ public class User implements UserDetails {
     )
     private Role role;
 
+    // NEW: Manager can activate/deactivate this account
+    @Column(
+            nullable = false
+    )
+    private boolean active = true;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt =
             LocalDateTime.now();
@@ -134,6 +140,6 @@ public class User implements UserDetails {
     @Override
     @JsonIgnore
     public boolean isEnabled() {
-        return true;
+        return active;
     }
 }

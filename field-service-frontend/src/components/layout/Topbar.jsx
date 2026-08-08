@@ -1,9 +1,7 @@
 import { Bell, Menu, Search, UserRound } from "lucide-react";
 
 import { useEffect, useState } from "react";
-
 import { useNavigate } from "react-router-dom";
-
 import toast from "react-hot-toast";
 
 import { useAuth } from "../../hooks/useAuth";
@@ -49,6 +47,25 @@ const managerSearchItems = [
     label: "Reports",
     path: "/reports",
     keywords: ["report", "reports", "analytics", "statistics"],
+  },
+  {
+    label: "User Management",
+    path: "/user-management",
+    keywords: [
+      "user management",
+      "users",
+      "manage users",
+      "manage user",
+      "user",
+      "user accounts",
+      "accounts",
+      "technicians",
+      "technician",
+      "dispatchers",
+      "dispatcher",
+      "customer accounts",
+      "employee accounts",
+    ],
   },
   {
     label: "Profile",
@@ -102,10 +119,11 @@ function Topbar({ openMobileSidebar }) {
   /*
    * Load complete user profile.
    * This allows the Topbar to get:
+   *
    * - profile photo
    * - updated name
    * - updated email
-   * etc.
+   * - role
    */
   useEffect(() => {
     let isMounted = true;
@@ -130,9 +148,9 @@ function Topbar({ openMobileSidebar }) {
     void loadProfile();
 
     /*
-     * ProfilePage can dispatch this
-     * event whenever profile information
-     * or profile photo changes.
+     * ProfilePage can dispatch this event
+     * whenever profile information or
+     * profile photo changes.
      */
     const handleProfileUpdated = () => {
       void loadProfile();
@@ -173,7 +191,6 @@ function Topbar({ openMobileSidebar }) {
 
     if (!query) {
       toast.error("Enter a module name to search.");
-
       return;
     }
 
@@ -192,11 +209,14 @@ function Topbar({ openMobileSidebar }) {
       return (
         label.includes(query) ||
         query.includes(label) ||
-        item.keywords.some(
-          (keyword) =>
-            keyword.toLowerCase().includes(query) ||
-            query.includes(keyword.toLowerCase()),
-        )
+        item.keywords.some((keyword) => {
+          const normalizedKeyword = keyword.toLowerCase();
+
+          return (
+            normalizedKeyword.includes(query) ||
+            query.includes(normalizedKeyword)
+          );
+        })
       );
     });
 
@@ -220,10 +240,10 @@ function Topbar({ openMobileSidebar }) {
   };
 
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
+    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
       <div className="flex h-20 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         {/* LEFT SIDE */}
-        <div className="flex min-w-0 items-center gap-3">
+        <div className="flex items-center gap-3">
           {/* MOBILE MENU */}
           <button
             type="button"

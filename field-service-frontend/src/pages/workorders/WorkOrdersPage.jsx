@@ -20,14 +20,15 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 
 import toast from "react-hot-toast";
 
+import { useAuth } from "../../hooks/useAuth";
+
 import AssignTechnicianModal from "../../components/work-orders/AssignTechnicianModal";
 import CreateWorkOrderModal from "../../components/work-orders/CreateWorkOrderModal";
 import StatusTransitionModal from "../../components/work-orders/StatusTransitionModal";
 
 import { getCustomers } from "../../services/customerService";
 import { getSites } from "../../services/siteService";
-import { getTechnicians } from "../../services/userService";
-
+import { getTechnicianWorkloads } from "../../services/userService";
 import {
   assignTechnician,
   createWorkOrder,
@@ -73,7 +74,9 @@ function WorkOrdersSkeleton() {
       <div className="h-64 rounded-[2rem] bg-slate-200" />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, index) => (
+        {Array.from({
+          length: 4,
+        }).map((_, index) => (
           <div key={index} className="h-36 rounded-3xl bg-slate-200" />
         ))}
       </div>
@@ -82,7 +85,9 @@ function WorkOrdersSkeleton() {
         <div className="h-24 border-b border-slate-200 bg-slate-100" />
 
         <div className="space-y-4 p-6">
-          {Array.from({ length: 6 }).map((_, index) => (
+          {Array.from({
+            length: 6,
+          }).map((_, index) => (
             <div key={index} className="h-24 rounded-2xl bg-slate-100" />
           ))}
         </div>
@@ -115,7 +120,14 @@ function StatCard({ title, value, description, icon: Icon, iconClass }) {
 
 function WorkOrdersPage() {
   const navigate = useNavigate();
+
   const [searchParams] = useSearchParams();
+
+  const { user } = useAuth();
+
+  const isManager = user?.role === "MANAGER";
+
+  const isDispatcher = user?.role === "DISPATCHER";
 
   const customerIdFromUrl = searchParams.get("customerId") || "";
 
@@ -179,17 +191,25 @@ function WorkOrdersPage() {
   }, [sites, selectedCustomerId]);
 
   const fetchSupportingData = useCallback(async () => {
-    const [customersData, sitesData, techniciansData] = await Promise.all([
-      getCustomers(),
-      getSites(),
-      getTechnicians(),
-    ]);
+    try {
+      const [customersData, sitesData, technicianWorkloadData] =
+        await Promise.all([
+          getCustomers(),
+          getSites(),
+          getTechnicianWorkloads(),
+        ]);
 
-    setCustomers(customersData);
-    setSites(sitesData);
-    setTechnicians(techniciansData);
+      setCustomers(customersData);
+
+      setSites(sitesData);
+
+      setTechnicians(technicianWorkloadData);
+    } catch (requestError) {
+      console.error("Unable to load supporting work-order data:", requestError);
+
+      throw requestError;
+    }
   }, []);
-
   const fetchWorkOrders = useCallback(
     async (showToast = false) => {
       try {
@@ -203,19 +223,30 @@ function WorkOrdersPage() {
 
         const result = await searchWorkOrders({
           keyword: appliedKeyword,
+
           status: selectedStatus,
+
           priority: selectedPriority,
+
           customerId: selectedCustomerId,
+
           siteId: selectedSiteId,
+
           technicianId: selectedTechnicianId,
+
           page: pageNumber,
+
           size: PAGE_SIZE,
+
           sortBy: "createdAt",
+
           sortDirection: "desc",
         });
 
         setWorkOrders(result.content || []);
+
         setTotalPages(result.totalPages || 0);
+
         setTotalElements(result.totalElements || 0);
 
         if (showToast) {
@@ -232,6 +263,7 @@ function WorkOrdersPage() {
         }
       } finally {
         setIsLoading(false);
+
         setIsRefreshing(false);
       }
     },
@@ -291,6 +323,7 @@ function WorkOrdersPage() {
     event.preventDefault();
 
     setPageNumber(0);
+
     setAppliedKeyword(searchInput.trim());
   };
 
@@ -309,6 +342,7 @@ function WorkOrdersPage() {
     setSelectedCustomerId(event.target.value);
 
     setSelectedSiteId("");
+
     setPageNumber(0);
   };
 
@@ -326,6 +360,7 @@ function WorkOrdersPage() {
 
   const openAssignModal = (workOrder) => {
     setSelectedWorkOrder(workOrder);
+
     setIsAssignModalOpen(true);
   };
 
@@ -335,12 +370,15 @@ function WorkOrdersPage() {
     }
 
     setIsAssignModalOpen(false);
+
     setSelectedWorkOrder(null);
   };
 
   const openStatusModal = (workOrder, nextStatus) => {
     setSelectedWorkOrder(workOrder);
+
     setTargetStatus(nextStatus);
+
     setIsStatusModalOpen(true);
   };
 
@@ -350,9 +388,12 @@ function WorkOrdersPage() {
     }
 
     setIsStatusModalOpen(false);
+
     setSelectedWorkOrder(null);
+
     setTargetStatus("");
   };
+
   const handleCreateWorkOrder = async (workOrderData) => {
     try {
       setIsSubmitting(true);
@@ -360,6 +401,7 @@ function WorkOrdersPage() {
       await createWorkOrder(workOrderData);
 
       setIsCreateModalOpen(false);
+
       setPageNumber(0);
 
       toast.success("Work order created successfully");
@@ -386,9 +428,14 @@ function WorkOrdersPage() {
       await assignTechnician(selectedWorkOrder.id, assignmentData);
 
       setIsAssignModalOpen(false);
+
       setSelectedWorkOrder(null);
 
-      toast.success("Technician assigned successfully");
+      toast.success(
+        selectedWorkOrder.assignedToName
+          ? "Technician reassigned successfully"
+          : "Technician assigned successfully",
+      );
 
       await fetchWorkOrders();
     } catch (requestError) {
@@ -412,7 +459,9 @@ function WorkOrdersPage() {
       await transitionWorkOrderStatus(selectedWorkOrder.id, transitionData);
 
       setIsStatusModalOpen(false);
+
       setSelectedWorkOrder(null);
+
       setTargetStatus("");
 
       toast.success("Work-order status updated");
@@ -430,70 +479,121 @@ function WorkOrdersPage() {
   };
 
   const getAvailableActions = (workOrder) => {
-    switch (workOrder.status) {
-      case "NEW":
-        return [
-          {
-            key: "assign",
-            label: "Assign technician",
-            action: () => openAssignModal(workOrder),
-          },
-          {
-            key: "cancel",
-            label: "Cancel",
-            action: () => openStatusModal(workOrder, "CANCELLED"),
-          },
-        ];
+    /*
+     * MANAGER
+     */
+    if (isManager) {
+      switch (workOrder.status) {
+        case "NEW":
+          return [
+            {
+              key: "assign",
+              label: "Assign technician",
+              action: () => openAssignModal(workOrder),
+            },
+            {
+              key: "cancel",
+              label: "Cancel",
+              action: () => openStatusModal(workOrder, "CANCELLED"),
+            },
+          ];
 
-      case "ASSIGNED":
-        return [
-          {
-            key: "start",
-            label: "Start work",
-            action: () => openStatusModal(workOrder, "IN_PROGRESS"),
-          },
-          {
-            key: "reassign",
-            label: "Reassign",
-            action: () => openAssignModal(workOrder),
-          },
-          {
-            key: "cancel",
-            label: "Cancel",
-            action: () => openStatusModal(workOrder, "CANCELLED"),
-          },
-        ];
+        case "ASSIGNED":
+          return [
+            {
+              key: "start",
+              label: "Start work",
+              action: () => openStatusModal(workOrder, "IN_PROGRESS"),
+            },
+            {
+              key: "reassign",
+              label: "Reassign",
+              action: () => openAssignModal(workOrder),
+            },
+            {
+              key: "cancel",
+              label: "Cancel",
+              action: () => openStatusModal(workOrder, "CANCELLED"),
+            },
+          ];
 
-      case "IN_PROGRESS":
-        return [
-          {
-            key: "hold",
-            label: "Put on hold",
-            action: () => openStatusModal(workOrder, "ON_HOLD"),
-          },
-        ];
+        case "IN_PROGRESS":
+          return [
+            {
+              key: "hold",
+              label: "Put on hold",
+              action: () => openStatusModal(workOrder, "ON_HOLD"),
+            },
+          ];
 
-      case "ON_HOLD":
-        return [
-          {
-            key: "resume",
-            label: "Resume",
-            action: () => openStatusModal(workOrder, "IN_PROGRESS"),
-          },
-        ];
+        case "ON_HOLD":
+          return [
+            {
+              key: "resume",
+              label: "Resume",
+              action: () => openStatusModal(workOrder, "IN_PROGRESS"),
+            },
+          ];
 
-      case "COMPLETED":
-        return [
-          {
-            key: "close",
-            label: "Close",
-            action: () => openStatusModal(workOrder, "CLOSED"),
-          },
-        ];
+        case "COMPLETED":
+          return [
+            {
+              key: "close",
+              label: "Close",
+              action: () => openStatusModal(workOrder, "CLOSED"),
+            },
+          ];
 
-      default:
-        return [];
+        default:
+          return [];
+      }
     }
+
+    /*
+     * DISPATCHER
+     *
+     * Dispatcher handles dispatching,
+     * assignment and cancellation.
+     *
+     * Dispatcher does NOT start,
+     * complete or close technician jobs.
+     */
+    if (isDispatcher) {
+      switch (workOrder.status) {
+        case "NEW":
+          return [
+            {
+              key: "assign",
+              label: "Assign technician",
+              action: () => openAssignModal(workOrder),
+            },
+            {
+              key: "cancel",
+              label: "Cancel",
+              action: () => openStatusModal(workOrder, "CANCELLED"),
+            },
+          ];
+
+        case "ASSIGNED":
+          return [
+            {
+              key: "reassign",
+              label: "Reassign",
+              action: () => openAssignModal(workOrder),
+            },
+            {
+              key: "cancel",
+              label: "Cancel",
+              action: () => openStatusModal(workOrder, "CANCELLED"),
+            },
+          ];
+
+        default:
+          return [];
+      }
+    }
+
+    return [];
   };
 
   if (isLoading) {
@@ -529,6 +629,7 @@ function WorkOrdersPage() {
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-6">
+      {/* HERO */}
       <section className="relative overflow-hidden rounded-[2rem] bg-slate-950 p-6 text-white shadow-2xl shadow-slate-300/40 sm:p-8">
         <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-violet-600/25 blur-3xl" />
 
@@ -538,16 +639,20 @@ function WorkOrdersPage() {
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-violet-200">
               <ClipboardList size={16} />
-              Work-order workspace
+
+              {isDispatcher ? "Dispatcher workspace" : "Work-order workspace"}
             </div>
 
             <h1 className="mt-5 text-3xl font-black tracking-tight sm:text-4xl">
-              Manage field operations
+              {isDispatcher
+                ? "Dispatch field operations"
+                : "Manage field operations"}
             </h1>
 
             <p className="mt-3 max-w-2xl leading-7 text-slate-400">
-              Create service jobs, assign technicians, monitor SLA deadlines and
-              manage the full work-order lifecycle.
+              {isDispatcher
+                ? "Create service jobs, assign or reassign technicians, monitor SLA deadlines and coordinate field operations."
+                : "Create service jobs, assign technicians, monitor SLA deadlines and manage the full work-order lifecycle."}
             </p>
           </div>
 
@@ -562,6 +667,7 @@ function WorkOrdersPage() {
         </div>
       </section>
 
+      {/* STATS */}
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           title="Total Results"
@@ -596,6 +702,7 @@ function WorkOrdersPage() {
         />
       </section>
 
+      {/* WORK ORDERS */}
       <section className="overflow-hidden rounded-[2rem] border border-slate-200/80 bg-white shadow-sm">
         <div className="border-b border-slate-200 p-5">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
@@ -639,6 +746,7 @@ function WorkOrdersPage() {
             </div>
           </div>
 
+          {/* FILTER FORM */}
           <form
             onSubmit={handleSearchSubmit}
             className="mt-6 grid gap-3 xl:grid-cols-[1.4fr_repeat(5,minmax(0,1fr))_auto]"
@@ -660,6 +768,7 @@ function WorkOrdersPage() {
                 value={selectedStatus}
                 onChange={(event) => {
                   setSelectedStatus(event.target.value);
+
                   setPageNumber(0);
                 }}
                 className="w-full appearance-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm text-slate-900 outline-none transition focus:border-violet-400 focus:bg-white focus:ring-4 focus:ring-violet-100"
@@ -682,6 +791,7 @@ function WorkOrdersPage() {
                 value={selectedPriority}
                 onChange={(event) => {
                   setSelectedPriority(event.target.value);
+
                   setPageNumber(0);
                 }}
                 className="w-full appearance-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm text-slate-900 outline-none transition focus:border-violet-400 focus:bg-white focus:ring-4 focus:ring-violet-100"
@@ -698,6 +808,7 @@ function WorkOrdersPage() {
                 className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"
               />
             </div>
+
             <div className="relative">
               <select
                 value={selectedCustomerId}
@@ -724,6 +835,7 @@ function WorkOrdersPage() {
                 value={selectedSiteId}
                 onChange={(event) => {
                   setSelectedSiteId(event.target.value);
+
                   setPageNumber(0);
                 }}
                 className="w-full appearance-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm text-slate-900 outline-none transition focus:border-violet-400 focus:bg-white focus:ring-4 focus:ring-violet-100"
@@ -748,6 +860,7 @@ function WorkOrdersPage() {
                 value={selectedTechnicianId}
                 onChange={(event) => {
                   setSelectedTechnicianId(event.target.value);
+
                   setPageNumber(0);
                 }}
                 className="w-full appearance-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm text-slate-900 outline-none transition focus:border-violet-400 focus:bg-white focus:ring-4 focus:ring-violet-100"
@@ -757,6 +870,9 @@ function WorkOrdersPage() {
                 {technicians.map((technician) => (
                   <option key={technician.id} value={technician.id}>
                     {technician.name}
+                    {" — "}
+                    {technician.activeJobs} active
+                    {technician.activeJobs === 1 ? " job" : " jobs"}
                   </option>
                 ))}
               </select>
@@ -776,16 +892,23 @@ function WorkOrdersPage() {
           </form>
         </div>
 
+        {/* TABLE */}
         <div className="overflow-x-auto">
           <table className="min-w-full">
             <thead className="bg-slate-50">
               <tr className="text-left text-sm font-bold text-slate-600">
                 <th className="px-6 py-4">Work Order</th>
+
                 <th className="px-6 py-4">Customer</th>
+
                 <th className="px-6 py-4">Technician</th>
+
                 <th className="px-6 py-4">Priority</th>
+
                 <th className="px-6 py-4">Status</th>
+
                 <th className="px-6 py-4">SLA</th>
+
                 <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
@@ -817,6 +940,7 @@ function WorkOrdersPage() {
 
                     <div className="mt-1 flex items-center gap-1 text-xs text-slate-500">
                       <MapPin size={13} />
+
                       {workOrder.siteName}
                     </div>
                   </td>
@@ -868,6 +992,7 @@ function WorkOrdersPage() {
                   <td className="px-6 py-5">
                     <div className="flex justify-end gap-2">
                       <button
+                        type="button"
                         onClick={() => navigate(`/work-orders/${workOrder.id}`)}
                         className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700 transition hover:border-violet-300 hover:text-violet-700"
                       >
@@ -876,6 +1001,7 @@ function WorkOrdersPage() {
 
                       {getAvailableActions(workOrder).map((action) => (
                         <button
+                          type="button"
                           key={action.key}
                           onClick={action.action}
                           className="rounded-xl bg-violet-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-violet-700"
@@ -891,8 +1017,10 @@ function WorkOrdersPage() {
           </table>
         </div>
 
+        {/* PAGINATION */}
         <div className="flex items-center justify-between border-t border-slate-200 p-5">
           <button
+            type="button"
             disabled={pageNumber === 0}
             onClick={() => setPageNumber((page) => Math.max(page - 1, 0))}
             className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 font-semibold disabled:opacity-50"
@@ -906,6 +1034,7 @@ function WorkOrdersPage() {
           </span>
 
           <button
+            type="button"
             disabled={pageNumber >= totalPages - 1}
             onClick={() => setPageNumber((page) => page + 1)}
             className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 font-semibold disabled:opacity-50"
@@ -916,6 +1045,7 @@ function WorkOrdersPage() {
         </div>
       </section>
 
+      {/* MODALS */}
       <CreateWorkOrderModal
         isOpen={isCreateModalOpen}
         customers={customers}

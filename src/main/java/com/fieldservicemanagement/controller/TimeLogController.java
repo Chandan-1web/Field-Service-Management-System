@@ -21,7 +21,7 @@ import com.fieldservicemanagement.service.TimeLogService;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/api/work-orders")
+@RequestMapping("/api")
 public class TimeLogController {
 
     private final TimeLogService timeLogService;
@@ -31,49 +31,147 @@ public class TimeLogController {
             TimeLogService timeLogService,
             UserRepository userRepository) {
 
-        this.timeLogService = timeLogService;
-        this.userRepository = userRepository;
+        this.timeLogService =
+                timeLogService;
+
+        this.userRepository =
+                userRepository;
     }
 
-    @PostMapping("/{workOrderId}/time-logs")
-    @PreAuthorize("hasRole('TECHNICIAN')")
-    public ResponseEntity<TimeLogResponse> logTime(
-            @PathVariable Long workOrderId,
-            @Valid @RequestBody TimeLogRequest request,
-            Authentication authentication) {
+    // =========================================================
+    // TECHNICIAN - LOG TIME FOR WORK ORDER
+    // =========================================================
 
-        User currentUser = getCurrentUser(authentication);
+    @PostMapping(
+            "/work-orders/{workOrderId}/time-logs"
+    )
+    @PreAuthorize(
+            "hasRole('TECHNICIAN')"
+    )
+    public ResponseEntity<TimeLogResponse>
+            logTime(
+                    @PathVariable
+                    Long workOrderId,
 
-        TimeLogResponse response = timeLogService.logTime(
-                workOrderId,
-                request,
-                currentUser
-        );
+                    @Valid
+                    @RequestBody
+                    TimeLogRequest request,
 
-        return ResponseEntity.ok(response);
-    }
+                    Authentication authentication) {
 
-    @GetMapping("/{workOrderId}/time-logs")
-    @PreAuthorize("hasAnyRole('TECHNICIAN', 'DISPATCHER', 'MANAGER')")
-    public ResponseEntity<List<TimeLogResponse>> getTimeLogs(
-            @PathVariable Long workOrderId,
-            Authentication authentication) {
+        User currentUser =
+                getCurrentUser(
+                        authentication
+                );
 
-        User currentUser = getCurrentUser(authentication);
-
-        List<TimeLogResponse> response =
-                timeLogService.getByWorkOrder(
+        TimeLogResponse response =
+                timeLogService.logTime(
                         workOrderId,
+                        request,
                         currentUser
                 );
 
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(
+                response
+        );
     }
 
-    private User getCurrentUser(Authentication authentication) {
+    // =========================================================
+    // VIEW TIME LOGS FOR ONE WORK ORDER
+    // =========================================================
+
+    @GetMapping(
+            "/work-orders/{workOrderId}/time-logs"
+    )
+    @PreAuthorize(
+            "hasAnyRole('TECHNICIAN', 'DISPATCHER', 'MANAGER')"
+    )
+    public ResponseEntity<List<TimeLogResponse>>
+            getTimeLogs(
+                    @PathVariable
+                    Long workOrderId,
+
+                    Authentication authentication) {
+
+        User currentUser =
+                getCurrentUser(
+                        authentication
+                );
+
+        List<TimeLogResponse> response =
+                timeLogService
+                        .getByWorkOrder(
+                                workOrderId,
+                                currentUser
+                        );
+
+        return ResponseEntity.ok(
+                response
+        );
+    }
+
+    // =========================================================
+    // TECHNICIAN - ALL MY TIME LOGS
+    // =========================================================
+
+    @GetMapping("/time-logs/my")
+    @PreAuthorize(
+            "hasRole('TECHNICIAN')"
+    )
+    public ResponseEntity<List<TimeLogResponse>>
+            getMyTimeLogs(
+                    Authentication authentication) {
+
+        User currentUser =
+                getCurrentUser(
+                        authentication
+                );
+
+        return ResponseEntity.ok(
+                timeLogService.getMyTimeLogs(
+                        currentUser
+                )
+        );
+    }
+
+    // =========================================================
+    // TECHNICIAN - TOTAL LOGGED MINUTES
+    // =========================================================
+
+    @GetMapping(
+            "/time-logs/my/total-minutes"
+    )
+    @PreAuthorize(
+            "hasRole('TECHNICIAN')"
+    )
+    public ResponseEntity<Long>
+            getMyTotalMinutes(
+                    Authentication authentication) {
+
+        User currentUser =
+                getCurrentUser(
+                        authentication
+                );
+
+        return ResponseEntity.ok(
+                timeLogService
+                        .getMyTotalMinutes(
+                                currentUser
+                        )
+        );
+    }
+
+    // =========================================================
+    // AUTHENTICATED USER HELPER
+    // =========================================================
+
+    private User getCurrentUser(
+            Authentication authentication) {
 
         return userRepository
-                .findByEmail(authentication.getName())
+                .findByEmail(
+                        authentication.getName()
+                )
                 .orElseThrow(() ->
                         new RuntimeException(
                                 "Logged-in user not found"

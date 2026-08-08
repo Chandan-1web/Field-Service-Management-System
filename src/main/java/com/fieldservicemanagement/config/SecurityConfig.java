@@ -156,13 +156,14 @@ public class SecurityConfig {
                         auth -> auth
 
                                 // LOGIN + SWAGGER + PROFILE IMAGES
-                                .requestMatchers(
-                                        "/api/auth/login",
-                                        "/swagger-ui/**",
-                                        "/v3/api-docs/**",
-                                        "/uploads/**"
-                                )
-                                .permitAll()
+                               .requestMatchers(
+        "/api/auth/login",
+        "/api/auth/register/customer",
+        "/swagger-ui/**",
+        "/v3/api-docs/**",
+        "/uploads/**"
+)
+.permitAll()
 
                                 // CORS PREFLIGHT
                                 .requestMatchers(

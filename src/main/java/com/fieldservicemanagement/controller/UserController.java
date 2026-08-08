@@ -7,6 +7,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -16,7 +17,12 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.fieldservicemanagement.dto.ChangePasswordRequest;
+import com.fieldservicemanagement.dto.CreateUserRequest;
+import com.fieldservicemanagement.dto.ManagedUserResponse;
 import com.fieldservicemanagement.dto.ProfileResponse;
+import com.fieldservicemanagement.dto.ResetUserPasswordRequest;
+import com.fieldservicemanagement.dto.TechnicianWorkloadResponse;
+import com.fieldservicemanagement.dto.UpdateManagedUserRequest;
 import com.fieldservicemanagement.dto.UpdateProfileRequest;
 import com.fieldservicemanagement.dto.UserResponse;
 import com.fieldservicemanagement.entity.User;
@@ -42,6 +48,10 @@ public class UserController {
         this.userService =
                 userService;
     }
+
+    // =========================================================
+    // TECHNICIANS
+    // =========================================================
 
     @GetMapping("/technicians")
     @PreAuthorize(
@@ -70,6 +80,26 @@ public class UserController {
                 technicians
         );
     }
+
+    // =========================================================
+    // TECHNICIAN WORKLOAD
+    // =========================================================
+
+    @GetMapping("/technicians/workload")
+    @PreAuthorize(
+            "hasAnyRole('MANAGER', 'DISPATCHER')"
+    )
+    public ResponseEntity<List<TechnicianWorkloadResponse>>
+            getTechnicianWorkloads() {
+
+        return ResponseEntity.ok(
+                userService.getTechnicianWorkloads()
+        );
+    }
+
+    // =========================================================
+    // CURRENT USER PROFILE
+    // =========================================================
 
     @GetMapping("/me")
     @PreAuthorize("isAuthenticated()")
@@ -102,34 +132,41 @@ public class UserController {
     }
 
     @PostMapping(
-        value = "/me/profile-photo",
-        consumes = "multipart/form-data"
-)
-public ResponseEntity<ProfileResponse>
-        uploadProfilePhoto(
-                @RequestParam("file")
-                MultipartFile file,
-                Authentication authentication) {
+            value = "/me/profile-photo",
+            consumes = "multipart/form-data"
+    )
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ProfileResponse>
+            uploadProfilePhoto(
+                    @RequestParam("file")
+                    MultipartFile file,
+                    Authentication authentication) {
 
-    return ResponseEntity.ok(
-            userService.uploadProfilePhoto(
-                    authentication.getName(),
-                    file
-            )
-    );
-}
+        return ResponseEntity.ok(
+                userService.uploadProfilePhoto(
+                        authentication.getName(),
+                        file
+                )
+        );
+    }
 
-@DeleteMapping("/me/profile-photo")
-public ResponseEntity<ProfileResponse>
-        removeProfilePhoto(
-                Authentication authentication) {
+    @DeleteMapping("/me/profile-photo")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ProfileResponse>
+            removeProfilePhoto(
+                    Authentication authentication) {
 
-    return ResponseEntity.ok(
-            userService.removeProfilePhoto(
-                    authentication.getName()
-            )
-    );
-}
+        return ResponseEntity.ok(
+                userService.removeProfilePhoto(
+                        authentication.getName()
+                )
+        );
+    }
+
+    // =========================================================
+    // CURRENT USER PASSWORD
+    // =========================================================
+
     @PutMapping("/change-password")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<String>
@@ -146,6 +183,133 @@ public ResponseEntity<ProfileResponse>
 
         return ResponseEntity.ok(
                 "Password changed successfully."
+        );
+    }
+
+    // =========================================================
+    // MANAGER - USER MANAGEMENT
+    // =========================================================
+
+    /**
+     * Manager can view all Technician,
+     * Dispatcher and Customer accounts.
+     */
+    @GetMapping("/manage")
+    @PreAuthorize("hasRole('MANAGER')")
+    public ResponseEntity<List<ManagedUserResponse>>
+            getManagedUsers() {
+
+        return ResponseEntity.ok(
+                userService.getAllManagedUsers()
+        );
+    }
+
+    /**
+     * Manager can view one managed user.
+     */
+    @GetMapping("/manage/{userId}")
+    @PreAuthorize("hasRole('MANAGER')")
+    public ResponseEntity<ManagedUserResponse>
+            getManagedUser(
+                    @PathVariable Long userId) {
+
+        return ResponseEntity.ok(
+                userService.getManagedUserById(
+                        userId
+                )
+        );
+    }
+
+    /**
+     * Manager creates a new Technician,
+     * Dispatcher or Customer account.
+     */
+    @PostMapping("/manage")
+    @PreAuthorize("hasRole('MANAGER')")
+    public ResponseEntity<ManagedUserResponse>
+            createManagedUser(
+                    @Valid
+                    @RequestBody
+                    CreateUserRequest request) {
+
+        return ResponseEntity.ok(
+                userService.createManagedUser(
+                        request
+                )
+        );
+    }
+
+    /**
+     * Manager updates a managed user.
+     */
+    @PutMapping("/manage/{userId}")
+    @PreAuthorize("hasRole('MANAGER')")
+    public ResponseEntity<ManagedUserResponse>
+            updateManagedUser(
+                    @PathVariable Long userId,
+                    @Valid
+                    @RequestBody
+                    UpdateManagedUserRequest request) {
+
+        return ResponseEntity.ok(
+                userService.updateManagedUser(
+                        userId,
+                        request
+                )
+        );
+    }
+
+    /**
+     * Manager activates a managed user.
+     */
+    @PutMapping("/manage/{userId}/activate")
+    @PreAuthorize("hasRole('MANAGER')")
+    public ResponseEntity<ManagedUserResponse>
+            activateManagedUser(
+                    @PathVariable Long userId) {
+
+        return ResponseEntity.ok(
+                userService.activateManagedUser(
+                        userId
+                )
+        );
+    }
+
+    /**
+     * Manager deactivates a managed user.
+     */
+    @PutMapping("/manage/{userId}/deactivate")
+    @PreAuthorize("hasRole('MANAGER')")
+    public ResponseEntity<ManagedUserResponse>
+            deactivateManagedUser(
+                    @PathVariable Long userId) {
+
+        return ResponseEntity.ok(
+                userService.deactivateManagedUser(
+                        userId
+                )
+        );
+    }
+
+    /**
+     * Manager resets another user's password.
+     */
+    @PutMapping("/manage/{userId}/reset-password")
+    @PreAuthorize("hasRole('MANAGER')")
+    public ResponseEntity<String>
+            resetManagedUserPassword(
+                    @PathVariable Long userId,
+                    @Valid
+                    @RequestBody
+                    ResetUserPasswordRequest request) {
+
+        userService.resetManagedUserPassword(
+                userId,
+                request
+        );
+
+        return ResponseEntity.ok(
+                "User password reset successfully."
         );
     }
 }

@@ -8,14 +8,21 @@ import {
   LayoutDashboard,
   LogOut,
   MapPin,
+  UserCog,
   UserRound,
   Users,
   Wrench,
 } from "lucide-react";
+
 import { NavLink } from "react-router-dom";
 
 import { useAuth } from "../../hooks/useAuth";
 
+/*
+ * MANAGER MENU
+ *
+ * Manager has complete administrative access.
+ */
 const managerMenu = [
   {
     label: "Dashboard",
@@ -48,12 +55,59 @@ const managerMenu = [
     path: "/reports",
   },
   {
+    label: "User Management",
+    icon: UserCog,
+    path: "/user-management",
+  },
+  {
     label: "Profile",
     icon: UserRound,
     path: "/profile",
   },
 ];
 
+/*
+ * DISPATCHER MENU
+ *
+ * Dispatcher handles operational work,
+ * but does not control users or manager reports.
+ */
+const dispatcherMenu = [
+  {
+    label: "Dashboard",
+    icon: LayoutDashboard,
+    path: "/dashboard",
+  },
+  {
+    label: "Customers",
+    icon: Users,
+    path: "/customers",
+  },
+  {
+    label: "Sites",
+    icon: MapPin,
+    path: "/sites",
+  },
+  {
+    label: "Work Orders",
+    icon: ClipboardList,
+    path: "/work-orders",
+  },
+  {
+    label: "Inventory",
+    icon: Boxes,
+    path: "/inventory",
+  },
+  {
+    label: "Profile",
+    icon: UserRound,
+    path: "/profile",
+  },
+];
+
+/*
+ * TECHNICIAN MENU
+ */
 const technicianMenu = [
   {
     label: "My Jobs",
@@ -82,6 +136,20 @@ const technicianMenu = [
   },
 ];
 
+/*
+ * CUSTOMER MENU
+ *
+ * Customer portal will be implemented later.
+ * For now the customer can access Profile.
+ */
+const customerMenu = [
+  {
+    label: "Profile",
+    icon: UserRound,
+    path: "/profile",
+  },
+];
+
 function Sidebar({
   isCollapsed,
   setIsCollapsed,
@@ -90,7 +158,29 @@ function Sidebar({
 }) {
   const { user, logout } = useAuth();
 
-  const menuItems = user?.role === "TECHNICIAN" ? technicianMenu : managerMenu;
+  /*
+   * Select navigation according to logged-in role.
+   */
+  const getMenuItems = () => {
+    switch (user?.role) {
+      case "MANAGER":
+        return managerMenu;
+
+      case "DISPATCHER":
+        return dispatcherMenu;
+
+      case "TECHNICIAN":
+        return technicianMenu;
+
+      case "CUSTOMER":
+        return customerMenu;
+
+      default:
+        return [];
+    }
+  };
+
+  const menuItems = getMenuItems();
 
   const handleLogout = () => {
     logout();
@@ -116,6 +206,7 @@ function Sidebar({
           isMobileOpen ? "translate-x-0" : "-translate-x-full"
         } ${isCollapsed ? "w-24" : "w-72"}`}
       >
+        {/* LOGO */}
         <div className="flex h-20 items-center justify-between border-b border-white/10 px-5">
           <div className="flex items-center gap-3 overflow-hidden">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 shadow-lg shadow-violet-950/40">
@@ -125,6 +216,7 @@ function Sidebar({
             {!isCollapsed && (
               <div>
                 <p className="font-black tracking-tight">KEYSTONE</p>
+
                 <p className="text-xs text-slate-400">Field Service Platform</p>
               </div>
             )}
@@ -143,6 +235,7 @@ function Sidebar({
           </button>
         </div>
 
+        {/* NAVIGATION */}
         <div className="px-4 pt-5">
           {!isCollapsed && (
             <p className="px-3 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
@@ -174,6 +267,7 @@ function Sidebar({
           </nav>
         </div>
 
+        {/* USER / LOGOUT */}
         <div className="mt-auto p-4">
           <div
             className={`rounded-2xl border border-white/10 bg-white/[0.04] p-3 ${
@@ -194,6 +288,7 @@ function Sidebar({
                   <p className="truncate text-sm font-bold text-white">
                     {user?.name || "User"}
                   </p>
+
                   <p className="truncate text-xs text-slate-400">
                     {user?.role || "Unknown role"}
                   </p>
@@ -209,6 +304,7 @@ function Sidebar({
               }`}
             >
               <LogOut size={17} />
+
               {!isCollapsed && <span>Logout</span>}
             </button>
           </div>

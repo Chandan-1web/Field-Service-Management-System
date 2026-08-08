@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -15,10 +16,17 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.fieldservicemanagement.dto.ChangePasswordRequest;
+import com.fieldservicemanagement.dto.CreateUserRequest;
+import com.fieldservicemanagement.dto.ManagedUserResponse;
 import com.fieldservicemanagement.dto.ProfileResponse;
+import com.fieldservicemanagement.dto.ResetUserPasswordRequest;
+import com.fieldservicemanagement.dto.TechnicianWorkloadResponse;
+import com.fieldservicemanagement.dto.UpdateManagedUserRequest;
 import com.fieldservicemanagement.dto.UpdateProfileRequest;
 import com.fieldservicemanagement.entity.User;
+import com.fieldservicemanagement.entity.WorkOrder;
 import com.fieldservicemanagement.repository.UserRepository;
+import com.fieldservicemanagement.repository.WorkOrderRepository;
 
 @Service
 public class UserService {
@@ -40,21 +48,29 @@ public class UserService {
             );
 
     private final UserRepository userRepository;
+    private final WorkOrderRepository workOrderRepository;
     private final PasswordEncoder passwordEncoder;
 
     public UserService(
             UserRepository userRepository,
+            WorkOrderRepository workOrderRepository,
             PasswordEncoder passwordEncoder) {
 
         this.userRepository = userRepository;
+        this.workOrderRepository = workOrderRepository;
         this.passwordEncoder = passwordEncoder;
     }
+
+    // =========================================================
+    // CURRENT USER PROFILE
+    // =========================================================
 
     @Transactional(readOnly = true)
     public ProfileResponse getCurrentProfile(
             String email) {
 
-        User user = findUserByEmail(email);
+        User user =
+                findUserByEmail(email);
 
         return toProfileResponse(user);
     }
@@ -112,16 +128,22 @@ public class UserService {
         return toProfileResponse(savedUser);
     }
 
+    // =========================================================
+    // PROFILE PHOTO
+    // =========================================================
+
     @Transactional
     public ProfileResponse uploadProfilePhoto(
             String email,
             MultipartFile file) {
 
-        User user = findUserByEmail(email);
+        User user =
+                findUserByEmail(email);
 
         validateProfilePhoto(file);
 
         try {
+
             Files.createDirectories(
                     PROFILE_UPLOAD_DIRECTORY
             );
@@ -180,7 +202,8 @@ public class UserService {
     public ProfileResponse removeProfilePhoto(
             String email) {
 
-        User user = findUserByEmail(email);
+        User user =
+                findUserByEmail(email);
 
         deleteOldProfilePhoto(
                 user.getProfilePhoto()
@@ -193,6 +216,10 @@ public class UserService {
 
         return toProfileResponse(savedUser);
     }
+
+    // =========================================================
+    // CURRENT USER CHANGE PASSWORD
+    // =========================================================
 
     @Transactional
     public void changePassword(
@@ -238,6 +265,318 @@ public class UserService {
 
         userRepository.save(user);
     }
+
+    // =========================================================
+    // MANAGER - USER MANAGEMENT
+    // =========================================================
+
+    /**
+     * Manager can view all non-manager user accounts.
+     */
+    @Transactional(readOnly = true)
+    public List<ManagedUserResponse> getAllManagedUsers() {
+
+        return userRepository
+                .findAll()
+                .stream()
+                .filter(user ->
+                        user.getRole()
+                                != User.Role.MANAGER
+                )
+                .map(this::toManagedUserResponse)
+                .toList();
+    }
+
+    /**
+     * Manager can view one managed user.
+     */
+    @Transactional(readOnly = true)
+    public ManagedUserResponse getManagedUserById(
+            Long userId) {
+
+        User user =
+                findManagedUserById(userId);
+
+        return toManagedUserResponse(user);
+    }
+
+    /**
+     * Manager creates Technician / Dispatcher / Customer.
+     */
+    @Transactional
+    public ManagedUserResponse createManagedUser(
+            CreateUserRequest request) {
+
+        String email =
+                request.getEmail()
+                        .trim()
+                        .toLowerCase();
+
+        if (userRepository
+                .findByEmail(email)
+                .isPresent()) {
+
+            throw new IllegalStateException(
+                    "A user with this email already exists."
+            );
+        }
+
+        validateManagedRole(
+                request.getRole()
+        );
+
+        User user = new User();
+
+        user.setName(
+                request.getName().trim()
+        );
+
+        user.setEmail(email);
+
+        user.setPhoneNumber(
+                cleanOptional(
+                        request.getPhoneNumber()
+                )
+        );
+
+        user.setDepartment(
+                cleanOptional(
+                        request.getDepartment()
+                )
+        );
+
+        user.setRole(
+                request.getRole()
+        );
+
+        user.setPasswordHash(
+                passwordEncoder.encode(
+                        request.getTemporaryPassword()
+                )
+        );
+
+        user.setActive(true);
+
+        User savedUser =
+                userRepository.save(user);
+
+        return toManagedUserResponse(
+                savedUser
+        );
+    }
+
+    /**
+     * Manager edits Technician / Dispatcher / Customer.
+     */
+    @Transactional
+    public ManagedUserResponse updateManagedUser(
+            Long userId,
+            UpdateManagedUserRequest request) {
+
+        User user =
+                findManagedUserById(userId);
+
+        validateManagedRole(
+                request.getRole()
+        );
+
+        String email =
+                request.getEmail()
+                        .trim()
+                        .toLowerCase();
+
+        Optional<User> existingUser =
+                userRepository.findByEmail(
+                        email
+                );
+
+        if (existingUser.isPresent()
+                && !existingUser
+                        .get()
+                        .getId()
+                        .equals(user.getId())) {
+
+            throw new IllegalStateException(
+                    "A user with this email already exists."
+            );
+        }
+
+        user.setName(
+                request.getName().trim()
+        );
+
+        user.setEmail(email);
+
+        user.setPhoneNumber(
+                cleanOptional(
+                        request.getPhoneNumber()
+                )
+        );
+
+        user.setDepartment(
+                cleanOptional(
+                        request.getDepartment()
+                )
+        );
+
+        user.setRole(
+                request.getRole()
+        );
+
+        User savedUser =
+                userRepository.save(user);
+
+        return toManagedUserResponse(
+                savedUser
+        );
+    }
+
+    /**
+     * Manager activates a user.
+     */
+    @Transactional
+    public ManagedUserResponse activateManagedUser(
+            Long userId) {
+
+        User user =
+                findManagedUserById(userId);
+
+        user.setActive(true);
+
+        User savedUser =
+                userRepository.save(user);
+
+        return toManagedUserResponse(
+                savedUser
+        );
+    }
+
+    /**
+     * Manager deactivates a user.
+     */
+    @Transactional
+    public ManagedUserResponse deactivateManagedUser(
+            Long userId) {
+
+        User user =
+                findManagedUserById(userId);
+
+        user.setActive(false);
+
+        User savedUser =
+                userRepository.save(user);
+
+        return toManagedUserResponse(
+                savedUser
+        );
+    }
+
+    /**
+     * Manager resets another user's password.
+     */
+    @Transactional
+    public void resetManagedUserPassword(
+            Long userId,
+            ResetUserPasswordRequest request) {
+
+        User user =
+                findManagedUserById(userId);
+
+        user.setPasswordHash(
+                passwordEncoder.encode(
+                        request.getTemporaryPassword()
+                )
+        );
+
+        userRepository.save(user);
+    }
+
+    // =========================================================
+    // TECHNICIAN WORKLOAD
+    // =========================================================
+
+    /**
+     * Returns technician workload information
+     * for Manager and Dispatcher.
+     *
+     * Active jobs:
+     * ASSIGNED + IN_PROGRESS + ON_HOLD
+     *
+     * 0-2 = AVAILABLE
+     * 3-4 = BUSY
+     * 5+  = HEAVILY_LOADED
+     */
+    @Transactional(readOnly = true)
+    public List<TechnicianWorkloadResponse>
+            getTechnicianWorkloads() {
+
+        List<User> technicians =
+                userRepository.findByRole(
+                        User.Role.TECHNICIAN
+                );
+
+        return technicians
+                .stream()
+                .map(technician -> {
+
+                    long assignedJobs =
+                            workOrderRepository
+                                    .countByAssignedToIdAndStatus(
+                                            technician.getId(),
+                                            WorkOrder.Status.ASSIGNED
+                                    );
+
+                    long inProgressJobs =
+                            workOrderRepository
+                                    .countByAssignedToIdAndStatus(
+                                            technician.getId(),
+                                            WorkOrder.Status.IN_PROGRESS
+                                    );
+
+                    long onHoldJobs =
+                            workOrderRepository
+                                    .countByAssignedToIdAndStatus(
+                                            technician.getId(),
+                                            WorkOrder.Status.ON_HOLD
+                                    );
+
+                    long activeJobs =
+                            assignedJobs
+                                    + inProgressJobs
+                                    + onHoldJobs;
+
+                    String availabilityStatus;
+
+                    if (activeJobs <= 2) {
+
+                        availabilityStatus =
+                                "AVAILABLE";
+
+                    } else if (activeJobs <= 4) {
+
+                        availabilityStatus =
+                                "BUSY";
+
+                    } else {
+
+                        availabilityStatus =
+                                "HEAVILY_LOADED";
+                    }
+
+                    return new TechnicianWorkloadResponse(
+                            technician.getId(),
+                            technician.getName(),
+                            technician.getEmail(),
+                            activeJobs,
+                            availabilityStatus
+                    );
+                })
+                .toList();
+    }
+
+    // =========================================================
+    // PROFILE PHOTO VALIDATION
+    // =========================================================
 
     private void validateProfilePhoto(
             MultipartFile file) {
@@ -290,6 +629,10 @@ public class UserService {
         }
     }
 
+    // =========================================================
+    // PROFILE PHOTO HELPERS
+    // =========================================================
+
     private String getExtension(
             String fileName) {
 
@@ -324,6 +667,7 @@ public class UserService {
         }
 
         try {
+
             String oldFileName =
                     profilePhotoPath.substring(
                             "/uploads/profiles/"
@@ -336,14 +680,20 @@ public class UserService {
                             .normalize()
                             .toAbsolutePath();
 
-            Files.deleteIfExists(oldFile);
+            Files.deleteIfExists(
+                    oldFile
+            );
 
         } catch (IOException ignored) {
 
-            // Old photo removal should not
-            // prevent a new photo upload.
+            // Old profile photo deletion should
+            // not prevent other operations.
         }
     }
+
+    // =========================================================
+    // USER HELPERS
+    // =========================================================
 
     private User findUserByEmail(
             String email) {
@@ -356,6 +706,60 @@ public class UserService {
                         )
                 );
     }
+
+    /**
+     * Finds a user managed by Manager.
+     * MANAGER accounts cannot be changed through
+     * User Management.
+     */
+    private User findManagedUserById(
+            Long userId) {
+
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "User not found."
+                                )
+                        );
+
+        if (user.getRole()
+                == User.Role.MANAGER) {
+
+            throw new IllegalArgumentException(
+                    "Manager accounts cannot be modified through User Management."
+            );
+        }
+
+        return user;
+    }
+
+    /**
+     * Only these roles can be managed from
+     * Manager User Management.
+     */
+    private void validateManagedRole(
+            User.Role role) {
+
+        if (role == null) {
+
+            throw new IllegalArgumentException(
+                    "Role is required."
+            );
+        }
+
+        if (role == User.Role.MANAGER) {
+
+            throw new IllegalArgumentException(
+                    "Creating or assigning the MANAGER role is not allowed through User Management."
+            );
+        }
+    }
+
+    // =========================================================
+    // RESPONSE MAPPERS
+    // =========================================================
 
     private ProfileResponse toProfileResponse(
             User user) {
@@ -372,6 +776,27 @@ public class UserService {
                 user.getLastLogin()
         );
     }
+
+    private ManagedUserResponse toManagedUserResponse(
+            User user) {
+
+        return new ManagedUserResponse(
+                user.getId(),
+                user.getName(),
+                user.getEmail(),
+                user.getPhoneNumber(),
+                user.getDepartment(),
+                user.getProfilePhoto(),
+                user.getRole(),
+                user.isActive(),
+                user.getCreatedAt(),
+                user.getLastLogin()
+        );
+    }
+
+    // =========================================================
+    // GENERAL HELPERS
+    // =========================================================
 
     private String cleanOptional(
             String value) {
