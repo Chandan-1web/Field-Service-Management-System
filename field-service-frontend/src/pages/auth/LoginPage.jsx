@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+
 import {
   Activity,
   ArrowRight,
@@ -40,6 +41,7 @@ const roleBenefits = [
 
 function LoginPage() {
   const navigate = useNavigate();
+
   const { login } = useAuth();
 
   const [formData, setFormData] = useState({
@@ -48,7 +50,9 @@ function LoginPage() {
   });
 
   const [showPassword, setShowPassword] = useState(false);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [fieldErrors, setFieldErrors] = useState({});
 
   const handleChange = (event) => {
@@ -94,15 +98,21 @@ function LoginPage() {
 
     try {
       const response = await loginUser(formData);
+
       const decodedToken = decodeToken(response.token);
 
       if (!decodedToken?.sub) {
         throw new Error("The authentication token is invalid");
       }
 
+      const normalizedRole = String(response.role || decodedToken.role || "")
+        .replace(/^ROLE_/, "")
+        .trim()
+        .toUpperCase();
+
       const authenticatedUser = {
         email: decodedToken.sub,
-        role: response.role || decodedToken.role,
+        role: normalizedRole,
         name: decodedToken.sub.split("@")[0],
       };
 
@@ -113,7 +123,15 @@ function LoginPage() {
 
       toast.success("Welcome to KEYSTONE");
 
-      navigate("/dashboard", {
+      let homePath = "/dashboard";
+
+      if (normalizedRole === "TECHNICIAN") {
+        homePath = "/my-jobs";
+      } else if (normalizedRole === "CUSTOMER") {
+        homePath = "/customer-dashboard";
+      }
+
+      navigate(homePath, {
         replace: true,
       });
     } catch (error) {
@@ -131,11 +149,16 @@ function LoginPage() {
   return (
     <main className="relative h-screen overflow-hidden bg-slate-950">
       <div className="absolute -left-40 -top-40 h-[28rem] w-[28rem] rounded-full bg-violet-600/30 blur-[120px]" />
+
       <div className="absolute -bottom-48 -right-32 h-[32rem] w-[32rem] rounded-full bg-sky-500/20 blur-[130px]" />
+
       <div className="absolute left-[42%] top-[25%] h-64 w-64 rounded-full bg-indigo-500/10 blur-[100px]" />
 
       <section className="relative z-10 grid h-full lg:grid-cols-[1.05fr_0.95fr]">
+        {/* ================================================= */}
         {/* LEFT SECTION */}
+        {/* ================================================= */}
+
         <div className="hidden h-full overflow-hidden p-8 lg:flex lg:flex-col lg:justify-between xl:p-10">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-xl shadow-violet-900/40">
@@ -146,6 +169,7 @@ function LoginPage() {
               <p className="text-base font-black tracking-tight text-white">
                 KEYSTONE
               </p>
+
               <p className="text-xs text-slate-400">Field Service Platform</p>
             </div>
           </div>
@@ -180,6 +204,7 @@ function LoginPage() {
 
                   <div>
                     <h2 className="text-sm font-bold text-white">{title}</h2>
+
                     <p className="mt-1 text-sm leading-5 text-slate-400">
                       {description}
                     </p>
@@ -202,9 +227,14 @@ function LoginPage() {
           </div>
         </div>
 
+        {/* ================================================= */}
         {/* RIGHT SECTION */}
+        {/* ================================================= */}
+
         <div className="flex h-full items-center justify-center overflow-y-auto bg-white px-5 py-5 sm:px-8 lg:rounded-l-[3rem] lg:px-10">
           <div className="w-full max-w-md py-3">
+            {/* MOBILE LOGO */}
+
             <div className="mb-6 flex items-center gap-3 lg:hidden">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-700 text-white">
                 <Activity size={22} />
@@ -212,9 +242,12 @@ function LoginPage() {
 
               <div>
                 <p className="font-black text-slate-950">KEYSTONE</p>
+
                 <p className="text-xs text-slate-500">Field Service Platform</p>
               </div>
             </div>
+
+            {/* LOGIN HEADER */}
 
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-600">
@@ -230,7 +263,11 @@ function LoginPage() {
               </p>
             </div>
 
+            {/* LOGIN FORM */}
+
             <form onSubmit={handleSubmit} className="mt-6 space-y-4" noValidate>
+              {/* EMAIL */}
+
               <div>
                 <label
                   htmlFor="email"
@@ -266,6 +303,8 @@ function LoginPage() {
                   </p>
                 )}
               </div>
+
+              {/* PASSWORD */}
 
               <div>
                 <div className="mb-1.5 flex items-center justify-between">
@@ -325,6 +364,8 @@ function LoginPage() {
                 )}
               </div>
 
+              {/* SIGN IN */}
+
               <button
                 type="submit"
                 disabled={isSubmitting}
@@ -344,6 +385,27 @@ function LoginPage() {
               </button>
             </form>
 
+            {/* ================================================= */}
+            {/* CUSTOMER REGISTRATION */}
+            {/* ================================================= */}
+
+            <div className="mt-5 rounded-2xl border border-violet-100 bg-violet-50/60 p-4 text-center">
+              <p className="text-sm font-semibold text-slate-600">
+                Are you a customer?
+              </p>
+
+              <button
+                type="button"
+                onClick={() => navigate("/register")}
+                className="mt-2 inline-flex items-center gap-2 text-sm font-black text-violet-700 transition hover:text-violet-900"
+              >
+                Create a customer account
+                <ArrowRight size={16} />
+              </button>
+            </div>
+
+            {/* SECURITY INFO */}
+
             <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-3.5">
               <div className="flex items-start gap-3">
                 <ShieldCheck
@@ -355,6 +417,7 @@ function LoginPage() {
                   <p className="text-sm font-bold text-slate-800">
                     Secure authentication
                   </p>
+
                   <p className="mt-1 text-sm leading-5 text-slate-500">
                     Your session is protected using signed JWT authentication
                     and server-side role authorization.

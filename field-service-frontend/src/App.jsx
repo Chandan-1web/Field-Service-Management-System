@@ -6,7 +6,12 @@ import DashboardPage from "./pages/dashboard/DashboardPage";
 
 import CustomersPage from "./pages/customers/CustomersPage";
 import CustomerDetailsPage from "./pages/customers/CustomerDetailsPage";
-
+import CustomerDashboardPage from "./pages/customers/CustomerDashboardPage";
+import CustomerSitesPage from "./pages/customers/CustomerSitesPage";
+import RequestServicePage from "./pages/customers/RequestServicePage";
+import MyRequestsPage from "./pages/customers/MyRequestsPage";
+import CustomerProfilePage from "./pages/customers/CustomerProfilePage";
+import RegisterPage from "./pages/auth/RegisterPage";
 import SitesPage from "./pages/sites/SitesPage";
 
 import WorkOrdersPage from "./pages/workorders/WorkOrdersPage";
@@ -23,8 +28,6 @@ import ReportsPage from "./pages/reports/ReportsPage";
 import ProfilePage from "./pages/profile/ProfilePage";
 
 import UserManagementPage from "./pages/usermanagement/UserManagementPage";
-
-import CustomerDashboardPage from "./pages/customers/CustomerDashboardPage";
 
 import ProtectedRoute from "./routes/ProtectedRoute";
 
@@ -67,7 +70,12 @@ function App() {
       return "/login";
     }
 
-    switch (user?.role) {
+    const currentRole = String(user?.role || "")
+      .replace(/^ROLE_/, "")
+      .trim()
+      .toUpperCase();
+
+    switch (currentRole) {
       case "MANAGER":
         return "/dashboard";
 
@@ -104,6 +112,16 @@ function App() {
             <Navigate to={getHomePath()} replace />
           ) : (
             <LoginPage />
+          )
+        }
+      />
+      <Route
+        path="/register"
+        element={
+          isAuthenticated ? (
+            <Navigate to={getHomePath()} replace />
+          ) : (
+            <RegisterPage />
           )
         }
       />
@@ -172,19 +190,18 @@ function App() {
             element={<CustomerDashboardPage />}
           />
 
-          {/*
-           * We will add these pages next:
-           *
-           * /request-service
-           * /my-requests
-           * /customer-sites
-           * /service-history
-           */}
+          <Route path="/customer-sites" element={<CustomerSitesPage />} />
+
+          <Route path="/request-service" element={<RequestServicePage />} />
+
+          <Route path="/my-requests" element={<MyRequestsPage />} />
+
+          <Route path="/customer-profile" element={<CustomerProfilePage />} />
         </Route>
       </Route>
 
       {/* ===================================================== */}
-      {/* PROFILE - ALL AUTHENTICATED USERS */}
+      {/* PROFILE - MANAGER / DISPATCHER / TECHNICIAN */}
       {/* ===================================================== */}
 
       <Route element={<ProtectedRoute />}>

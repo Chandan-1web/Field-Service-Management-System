@@ -8,7 +8,12 @@ function ProtectedRoute({ allowedRoles }) {
     return <Navigate to="/login" replace />;
   }
 
-  if (allowedRoles && user?.role && !allowedRoles.includes(user.role)) {
+  const currentRole = String(user?.role || "")
+    .replace(/^ROLE_/, "")
+    .trim()
+    .toUpperCase();
+
+  if (allowedRoles && !allowedRoles.includes(currentRole)) {
     return <Navigate to="/unauthorized" replace />;
   }
 

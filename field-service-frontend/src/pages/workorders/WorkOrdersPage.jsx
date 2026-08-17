@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   AlertTriangle,
@@ -16,7 +16,7 @@ import {
   Wrench,
 } from "lucide-react";
 
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 
 import toast from "react-hot-toast";
 
@@ -25,6 +25,7 @@ import { useAuth } from "../../hooks/useAuth";
 import AssignTechnicianModal from "../../components/work-orders/AssignTechnicianModal";
 import CreateWorkOrderModal from "../../components/work-orders/CreateWorkOrderModal";
 import StatusTransitionModal from "../../components/work-orders/StatusTransitionModal";
+import WorkOrderDetailsModal from "../../components/work-orders/WorkOrderDetailsModal";
 
 import { getCustomers } from "../../services/customerService";
 import { getSites } from "../../services/siteService";
@@ -119,9 +120,9 @@ function StatCard({ title, value, description, icon: Icon, iconClass }) {
 }
 
 function WorkOrdersPage() {
-  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [searchParams] = useSearchParams();
+  const notificationHandledRef = useRef(null);
 
   const { user } = useAuth();
 
@@ -132,6 +133,10 @@ function WorkOrdersPage() {
   const customerIdFromUrl = searchParams.get("customerId") || "";
 
   const siteIdFromUrl = searchParams.get("siteId") || "";
+
+  const workOrderIdFromUrl = searchParams.get("workOrderId") || "";
+
+  const workOrderCodeFromUrl = searchParams.get("workOrderCode") || "";
 
   const [workOrders, setWorkOrders] = useState([]);
 
@@ -173,6 +178,8 @@ function WorkOrdersPage() {
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
 
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
   const [selectedWorkOrder, setSelectedWorkOrder] = useState(null);
 
@@ -288,6 +295,75 @@ function WorkOrdersPage() {
     };
   }, [fetchSupportingData, fetchWorkOrders]);
 
+  // =====================================================
+  // OPEN WORK ORDER FROM NOTIFICATION
+  // =====================================================
+
+  useEffect(() => {
+    notificationHandledRef.current = null;
+  }, [workOrderIdFromUrl]);
+
+  useEffect(() => {
+    if (!workOrderIdFromUrl || isLoading) {
+      return;
+    }
+
+    if (notificationHandledRef.current === workOrderIdFromUrl) {
+      return;
+    }
+
+    const matchedWorkOrder = workOrders.find(
+      (workOrder) => String(workOrder.id) === String(workOrderIdFromUrl),
+    );
+
+    if (matchedWorkOrder) {
+      const timerId = window.setTimeout(() => {
+        notificationHandledRef.current = workOrderIdFromUrl;
+
+        setSelectedWorkOrder(matchedWorkOrder);
+        setIsDetailsModalOpen(true);
+
+        const nextParams = new URLSearchParams(searchParams);
+
+        nextParams.delete("workOrderId");
+        nextParams.delete("workOrderCode");
+
+        setSearchParams(nextParams, {
+          replace: true,
+        });
+      }, 0);
+
+      return () => {
+        window.clearTimeout(timerId);
+      };
+    }
+
+    if (workOrderCodeFromUrl && appliedKeyword !== workOrderCodeFromUrl) {
+      const timerId = window.setTimeout(() => {
+        setSearchInput(workOrderCodeFromUrl);
+        setAppliedKeyword(workOrderCodeFromUrl);
+        setSelectedStatus("");
+        setSelectedPriority("");
+        setSelectedCustomerId("");
+        setSelectedSiteId("");
+        setSelectedTechnicianId("");
+        setPageNumber(0);
+      }, 0);
+
+      return () => {
+        window.clearTimeout(timerId);
+      };
+    }
+  }, [
+    appliedKeyword,
+    isLoading,
+    searchParams,
+    setSearchParams,
+    workOrderCodeFromUrl,
+    workOrderIdFromUrl,
+    workOrders,
+  ]);
+
   const activeCount = useMemo(
     () =>
       workOrders.filter((workOrder) =>
@@ -356,6 +432,16 @@ function WorkOrdersPage() {
     }
 
     setIsCreateModalOpen(false);
+  };
+
+  const openDetailsModal = (workOrder) => {
+    setSelectedWorkOrder(workOrder);
+    setIsDetailsModalOpen(true);
+  };
+
+  const closeDetailsModal = () => {
+    setIsDetailsModalOpen(false);
+    setSelectedWorkOrder(null);
   };
 
   const openAssignModal = (workOrder) => {
@@ -993,7 +1079,7 @@ function WorkOrdersPage() {
                     <div className="flex justify-end gap-2">
                       <button
                         type="button"
-                        onClick={() => navigate(`/work-orders/${workOrder.id}`)}
+                        onClick={() => openDetailsModal(workOrder)}
                         className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700 transition hover:border-violet-300 hover:text-violet-700"
                       >
                         View
@@ -1071,6 +1157,12 @@ function WorkOrdersPage() {
         isSubmitting={isSubmitting}
         onClose={closeStatusModal}
         onSubmit={handleStatusTransition}
+      />
+
+      <WorkOrderDetailsModal
+        isOpen={isDetailsModalOpen}
+        workOrder={selectedWorkOrder}
+        onClose={closeDetailsModal}
       />
     </div>
   );

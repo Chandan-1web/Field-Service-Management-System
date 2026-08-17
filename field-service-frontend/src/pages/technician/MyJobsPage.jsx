@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   AlertTriangle,
@@ -12,6 +12,8 @@ import {
   UserRound,
   Wrench,
 } from "lucide-react";
+
+import { useSearchParams } from "react-router-dom";
 
 import toast from "react-hot-toast";
 
@@ -81,6 +83,12 @@ function MyJobsSkeleton() {
 }
 
 function MyJobsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const notificationHandledRef = useRef(null);
+
+  const workOrderIdFromUrl = searchParams.get("workOrderId") || "";
+
   const [jobs, setJobs] = useState([]);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -140,6 +148,51 @@ function MyJobsPage() {
       window.clearTimeout(timerId);
     };
   }, [fetchJobs]);
+
+  // =====================================================
+  // OPEN JOB FROM NOTIFICATION
+  // =====================================================
+
+  useEffect(() => {
+    notificationHandledRef.current = null;
+  }, [workOrderIdFromUrl]);
+
+  useEffect(() => {
+    if (!workOrderIdFromUrl || isLoading) {
+      return;
+    }
+
+    if (notificationHandledRef.current === workOrderIdFromUrl) {
+      return;
+    }
+
+    const matchedJob = jobs.find(
+      (job) => String(job.id) === String(workOrderIdFromUrl),
+    );
+
+    if (!matchedJob) {
+      return;
+    }
+
+    const timerId = window.setTimeout(() => {
+      notificationHandledRef.current = workOrderIdFromUrl;
+
+      setSelectedWorkOrder(matchedJob);
+      setIsDetailsModalOpen(true);
+
+      const nextParams = new URLSearchParams(searchParams);
+
+      nextParams.delete("workOrderId");
+
+      setSearchParams(nextParams, {
+        replace: true,
+      });
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [isLoading, jobs, searchParams, setSearchParams, workOrderIdFromUrl]);
 
   const assignedCount = useMemo(
     () => jobs.filter((job) => job.status === "ASSIGNED").length,

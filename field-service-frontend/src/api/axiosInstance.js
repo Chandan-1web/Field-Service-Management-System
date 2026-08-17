@@ -12,10 +12,7 @@ axiosInstance.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // IMPORTANT:
-    // FormData must NOT be forced to application/json.
-    // The browser will automatically generate:
-    // multipart/form-data; boundary=...
+    // FormData must not be forced to application/json.
     if (config.data instanceof FormData) {
       delete config.headers["Content-Type"];
     } else {
@@ -33,7 +30,6 @@ axiosInstance.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem("accessToken");
-
       localStorage.removeItem("user");
 
       window.location.href = "/login";

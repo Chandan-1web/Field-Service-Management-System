@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fieldservicemanagement.dto.AssignmentRequest;
+import com.fieldservicemanagement.dto.CustomerWorkOrderRequest;
 import com.fieldservicemanagement.dto.StatusTransitionRequest;
 import com.fieldservicemanagement.dto.WorkOrderRequest;
 import com.fieldservicemanagement.dto.WorkOrderResponse;
@@ -48,6 +49,7 @@ public class WorkOrderService {
     private final WorkOrderLifecycleService lifecycleService;
     private final UserRepository userRepository;
     private final EmailService emailService;
+    private final NotificationService notificationService;
 
     public WorkOrderService(
             WorkOrderRepository workOrderRepository,
@@ -55,7 +57,8 @@ public class WorkOrderService {
             SiteRepository siteRepository,
             WorkOrderLifecycleService lifecycleService,
             UserRepository userRepository,
-            EmailService emailService) {
+            EmailService emailService,
+            NotificationService notificationService) {
 
         this.workOrderRepository = workOrderRepository;
         this.customerRepository = customerRepository;
@@ -63,6 +66,7 @@ public class WorkOrderService {
         this.lifecycleService = lifecycleService;
         this.userRepository = userRepository;
         this.emailService = emailService;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -136,6 +140,205 @@ public class WorkOrderService {
 
         return toResponse(saved);
     }
+    // =========================================================
+// CUSTOMER - CREATE SERVICE REQUEST
+// =========================================================
+
+@Transactional
+public WorkOrderResponse createCustomerRequest(
+        CustomerWorkOrderRequest request,
+        User currentUser) {
+
+    // -----------------------------------------------------
+    // VALIDATE ROLE
+    // -----------------------------------------------------
+
+    if (currentUser.getRole() != User.Role.CUSTOMER) {
+        throw new IllegalStateException(
+                "Only customers can create customer service requests."
+        );
+    }
+
+    // -----------------------------------------------------
+    // FIND CUSTOMER USING LOGGED-IN EMAIL
+    // -----------------------------------------------------
+
+    Customer customer =
+            customerRepository
+                    .findByContactEmailIgnoreCase(
+                            currentUser.getEmail()
+                    )
+                    .orElseThrow(() ->
+                            new RuntimeException(
+                                    "Customer profile not found for logged-in user."
+                            )
+                    );
+
+    // -----------------------------------------------------
+    // FIND SELECTED SITE
+    // -----------------------------------------------------
+
+    Site site =
+            siteRepository
+                    .findById(
+                            request.getSiteId()
+                    )
+                    .orElseThrow(() ->
+                            new RuntimeException(
+                                    "Site not found with id: "
+                                            + request.getSiteId()
+                            )
+                    );
+
+    // -----------------------------------------------------
+    // SECURITY CHECK:
+    // SITE MUST BELONG TO LOGGED-IN CUSTOMER
+    // -----------------------------------------------------
+
+    if (!site.getCustomer()
+            .getId()
+            .equals(customer.getId())) {
+
+        throw new IllegalStateException(
+                "The selected site does not belong to your customer account."
+        );
+    }
+
+    // -----------------------------------------------------
+    // PREVENT DUPLICATE ACTIVE REQUEST
+    // -----------------------------------------------------
+
+    Set<WorkOrder.Status> activeStatuses =
+            EnumSet.of(
+                    WorkOrder.Status.NEW,
+                    WorkOrder.Status.ASSIGNED,
+                    WorkOrder.Status.IN_PROGRESS,
+                    WorkOrder.Status.ON_HOLD
+            );
+
+    boolean duplicateExists =
+            workOrderRepository
+                    .existsByCustomerIdAndSiteIdAndTitleIgnoreCaseAndStatusIn(
+                            customer.getId(),
+                            site.getId(),
+                            request.getTitle(),
+                            activeStatuses
+                    );
+
+    if (duplicateExists) {
+        throw new IllegalStateException(
+                "You already have an active service request with the same title for this site."
+        );
+    }
+
+    // -----------------------------------------------------
+    // PRIORITY
+    // -----------------------------------------------------
+
+    WorkOrder.Priority priority =
+            parsePriority(
+                    request.getPriority()
+            );
+
+    // -----------------------------------------------------
+    // CREATE NEW WORK ORDER
+    // -----------------------------------------------------
+
+    WorkOrder workOrder =
+            new WorkOrder();
+
+    workOrder.setCode(
+            generateCode()
+    );
+
+    workOrder.setTitle(
+            request.getTitle().trim()
+    );
+
+    workOrder.setDescription(
+            request.getDescription() != null
+                    ? request.getDescription().trim()
+                    : null
+    );
+
+    workOrder.setPriority(
+            priority
+    );
+
+    workOrder.setStatus(
+            WorkOrder.Status.NEW
+    );
+
+    workOrder.setCustomer(
+            customer
+    );
+
+    workOrder.setSite(
+            site
+    );
+
+    workOrder.setSlaDueAt(
+            calculateSlaDueDate(
+                    priority
+            )
+    );
+
+    workOrder.setCreatedAt(
+            LocalDateTime.now()
+    );
+
+    workOrder.setUpdatedAt(
+            LocalDateTime.now()
+    );
+
+    WorkOrder savedWorkOrder =
+            workOrderRepository.save(
+                    workOrder
+            );
+
+    notifyInternalUsersAboutNewRequest(
+            savedWorkOrder
+    );
+
+    return toResponse(
+            savedWorkOrder
+    );
+}
+
+// =========================================================
+// CUSTOMER - GET MY SERVICE REQUESTS
+// =========================================================
+
+@Transactional(readOnly = true)
+public List<WorkOrderResponse> getMyCustomerRequests(
+        User currentUser) {
+
+    if (currentUser.getRole() != User.Role.CUSTOMER) {
+        throw new IllegalStateException(
+                "Only customers can access customer service requests."
+        );
+    }
+
+    Customer customer =
+            customerRepository
+                    .findByContactEmailIgnoreCase(
+                            currentUser.getEmail()
+                    )
+                    .orElseThrow(() ->
+                            new RuntimeException(
+                                    "Customer profile not found for logged-in user."
+                            )
+                    );
+
+    return workOrderRepository
+            .findByCustomerIdOrderByCreatedAtDesc(
+                    customer.getId()
+            )
+            .stream()
+            .map(this::toResponse)
+            .toList();
+}
+
 
     @Transactional(readOnly = true)
     public List<WorkOrderResponse> getAll() {
@@ -169,6 +372,7 @@ public class WorkOrderService {
                 .stream()
                 .map(this::toResponse)
                 .toList();
+
     }
 
     @Transactional(readOnly = true)
@@ -366,6 +570,11 @@ public class WorkOrderService {
                 request.getNote()
         );
 
+        notifyAboutStatusChange(
+                updated,
+                newStatus
+        );
+
         return toResponse(updated);
     }
 
@@ -491,6 +700,11 @@ public class WorkOrderService {
                 savedWorkOrder,
                 technician,
                 assignedBy
+        );
+
+        notifyTechnicianAboutAssignment(
+                savedWorkOrder,
+                technician
         );
 
         return toResponse(savedWorkOrder);
@@ -678,6 +892,250 @@ public class WorkOrderService {
                             + exception.getMessage()
             );
         }
+    }
+
+    // =========================================================
+    // IN-APP NOTIFICATIONS
+    // =========================================================
+
+    private void notifyInternalUsersAboutNewRequest(
+            WorkOrder workOrder) {
+
+        try {
+
+            List<User> recipients =
+                    userRepository.findAll()
+                            .stream()
+                            .filter(User::isActive)
+                            .filter(user ->
+                                    user.getRole() == User.Role.DISPATCHER
+                                            || user.getRole() == User.Role.MANAGER
+                            )
+                            .toList();
+
+            for (User recipient : recipients) {
+
+                notificationService.createNotification(
+                        recipient,
+                        workOrder,
+                        "New service request",
+                        workOrder.getCode()
+                                + " - "
+                                + workOrder.getTitle()
+                                + " was created by "
+                                + workOrder.getCustomer().getName()
+                                + "."
+                );
+            }
+
+        } catch (Exception exception) {
+
+            System.err.println(
+                    "Unable to create new request notification: "
+                            + exception.getMessage()
+            );
+        }
+    }
+
+    private void notifyTechnicianAboutAssignment(
+            WorkOrder workOrder,
+            User technician) {
+
+        try {
+
+            notificationService.createNotification(
+                    technician,
+                    workOrder,
+                    "New work order assigned",
+                    workOrder.getCode()
+                            + " - "
+                            + workOrder.getTitle()
+                            + " has been assigned to you."
+            );
+
+        } catch (Exception exception) {
+
+            System.err.println(
+                    "Unable to create technician notification: "
+                            + exception.getMessage()
+            );
+        }
+    }
+
+    private void notifyAboutStatusChange(
+            WorkOrder workOrder,
+            WorkOrder.Status newStatus) {
+
+        User customerUser = findCustomerUser(
+                workOrder.getCustomer().getContactEmail()
+        );
+
+        switch (newStatus) {
+
+            case IN_PROGRESS -> notifyCustomer(
+                    customerUser,
+                    workOrder,
+                    "Service work started",
+                    "A technician has started working on "
+                            + workOrder.getCode()
+                            + " - "
+                            + workOrder.getTitle()
+                            + "."
+            );
+
+            case ON_HOLD -> {
+
+                notifyCustomer(
+                        customerUser,
+                        workOrder,
+                        "Service request on hold",
+                        workOrder.getCode()
+                                + " - "
+                                + workOrder.getTitle()
+                                + " has been placed on hold."
+                );
+
+                notifyInternalUsers(
+                        workOrder,
+                        "Work order placed on hold",
+                        workOrder.getCode()
+                                + " has been placed on hold."
+                );
+            }
+
+            case COMPLETED -> {
+
+                notifyCustomer(
+                        customerUser,
+                        workOrder,
+                        "Service completed",
+                        "Your service request "
+                                + workOrder.getCode()
+                                + " - "
+                                + workOrder.getTitle()
+                                + " has been completed successfully."
+                );
+
+                notifyInternalUsers(
+                        workOrder,
+                        "Work order completed",
+                        workOrder.getCode()
+                                + " has been completed by "
+                                + (workOrder.getAssignedTo() != null
+                                ? workOrder.getAssignedTo().getName()
+                                : "the technician")
+                                + "."
+                );
+            }
+
+            case CLOSED -> notifyCustomer(
+                    customerUser,
+                    workOrder,
+                    "Service request closed",
+                    "Your service request "
+                            + workOrder.getCode()
+                            + " has been closed."
+            );
+
+            case CANCELLED -> notifyCustomer(
+                    customerUser,
+                    workOrder,
+                    "Service request cancelled",
+                    "Your service request "
+                            + workOrder.getCode()
+                            + " has been cancelled."
+            );
+
+            default -> {
+                // No notification required.
+            }
+        }
+    }
+
+    private void notifyCustomer(
+            User customerUser,
+            WorkOrder workOrder,
+            String title,
+            String message) {
+
+        if (customerUser == null) {
+            return;
+        }
+
+        try {
+
+            notificationService.createNotification(
+                    customerUser,
+                    workOrder,
+                    title,
+                    message
+            );
+
+        } catch (Exception exception) {
+
+            System.err.println(
+                    "Unable to create customer notification: "
+                            + exception.getMessage()
+            );
+        }
+    }
+
+    private void notifyInternalUsers(
+            WorkOrder workOrder,
+            String title,
+            String message) {
+
+        try {
+
+            List<User> recipients =
+                    userRepository.findAll()
+                            .stream()
+                            .filter(User::isActive)
+                            .filter(user ->
+                                    user.getRole() == User.Role.DISPATCHER
+                                            || user.getRole() == User.Role.MANAGER
+                            )
+                            .toList();
+
+            for (User recipient : recipients) {
+
+                notificationService.createNotification(
+                        recipient,
+                        workOrder,
+                        title,
+                        message
+                );
+            }
+
+        } catch (Exception exception) {
+
+            System.err.println(
+                    "Unable to create internal notification: "
+                            + exception.getMessage()
+            );
+        }
+    }
+
+    private User findCustomerUser(
+            String customerEmail) {
+
+        if (customerEmail == null
+                || customerEmail.isBlank()) {
+
+            return null;
+        }
+
+        return userRepository.findAll()
+                .stream()
+                .filter(User::isActive)
+                .filter(user ->
+                        user.getRole() == User.Role.CUSTOMER
+                )
+                .filter(user ->
+                        user.getEmail().equalsIgnoreCase(customerEmail)
+                )
+                .findFirst()
+                .orElse(null);
     }
 
     private WorkOrderResponse toResponse(

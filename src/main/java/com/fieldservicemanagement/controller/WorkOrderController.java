@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fieldservicemanagement.dto.AssignmentRequest;
+import com.fieldservicemanagement.dto.CustomerWorkOrderRequest;
 import com.fieldservicemanagement.dto.StatusTransitionRequest;
 import com.fieldservicemanagement.dto.WorkOrderRequest;
 import com.fieldservicemanagement.dto.WorkOrderResponse;
@@ -41,15 +42,25 @@ public class WorkOrderController {
         this.userRepository = userRepository;
     }
 
+    // =========================================================
+    // MANAGER / DISPATCHER - CREATE WORK ORDER
+    // =========================================================
+
     @PostMapping
     @PreAuthorize("hasAnyRole('DISPATCHER', 'MANAGER')")
     public ResponseEntity<WorkOrderResponse> create(
-            @Valid @RequestBody WorkOrderRequest request) {
+            @Valid
+            @RequestBody
+            WorkOrderRequest request) {
 
         return ResponseEntity.ok(
                 workOrderService.create(request)
         );
     }
+
+    // =========================================================
+    // TECHNICIAN / DISPATCHER / MANAGER - GET ALL
+    // =========================================================
 
     @GetMapping
     @PreAuthorize(
@@ -62,20 +73,33 @@ public class WorkOrderController {
         );
     }
 
+    // =========================================================
+    // TECHNICIAN / DISPATCHER / MANAGER - GET BY STATUS
+    // =========================================================
+
     @GetMapping("/status/{status}")
     @PreAuthorize(
             "hasAnyRole('TECHNICIAN', 'DISPATCHER', 'MANAGER')"
     )
     public ResponseEntity<List<WorkOrderResponse>> getByStatus(
-            @PathVariable String status) {
+            @PathVariable
+            String status) {
 
         return ResponseEntity.ok(
-                workOrderService.getByStatus(status)
+                workOrderService.getByStatus(
+                        status
+                )
         );
     }
 
+    // =========================================================
+    // MANAGER / DISPATCHER - SEARCH
+    // =========================================================
+
     @GetMapping("/search")
-    @PreAuthorize("hasAnyRole('DISPATCHER', 'MANAGER')")
+    @PreAuthorize(
+            "hasAnyRole('DISPATCHER', 'MANAGER')"
+    )
     public ResponseEntity<Page<WorkOrderResponse>> search(
             @RequestParam(required = false)
             String keyword,
@@ -137,87 +161,202 @@ public class WorkOrderController {
         );
     }
 
+    // =========================================================
+    // CUSTOMER - CREATE SERVICE REQUEST
+    // =========================================================
+
+    @PostMapping("/customer/request")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<WorkOrderResponse>
+            createCustomerRequest(
+                    @Valid
+                    @RequestBody
+                    CustomerWorkOrderRequest request,
+                    Authentication authentication) {
+
+        User currentUser =
+                getCurrentUser(
+                        authentication
+                );
+
+        WorkOrderResponse response =
+                workOrderService
+                        .createCustomerRequest(
+                                request,
+                                currentUser
+                        );
+
+        return ResponseEntity.ok(
+                response
+        );
+    }
+
+    // =========================================================
+    // CUSTOMER - GET MY SERVICE REQUESTS
+    // =========================================================
+
+    @GetMapping("/customer/my")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<List<WorkOrderResponse>>
+            getMyCustomerRequests(
+                    Authentication authentication) {
+
+        User currentUser =
+                getCurrentUser(
+                        authentication
+                );
+
+        List<WorkOrderResponse> requests =
+                workOrderService
+                        .getMyCustomerRequests(
+                                currentUser
+                        );
+
+        return ResponseEntity.ok(
+                requests
+        );
+    }
+
+    // =========================================================
+    // TECHNICIAN / DISPATCHER / MANAGER - CHANGE STATUS
+    // =========================================================
+
     @PostMapping("/{id}/status")
     @PreAuthorize(
             "hasAnyRole('TECHNICIAN', 'DISPATCHER', 'MANAGER')"
     )
     public ResponseEntity<WorkOrderResponse> transitionStatus(
-            @PathVariable Long id,
+            @PathVariable
+            Long id,
+
             @Valid
             @RequestBody
             StatusTransitionRequest request,
+
             Authentication authentication) {
 
         User currentUser =
-                getCurrentUser(authentication);
-
-        WorkOrderResponse response =
-                workOrderService.transitionStatus(
-                        id,
-                        request,
-                        currentUser
+                getCurrentUser(
+                        authentication
                 );
 
-        return ResponseEntity.ok(response);
+        WorkOrderResponse response =
+                workOrderService
+                        .transitionStatus(
+                                id,
+                                request,
+                                currentUser
+                        );
+
+        return ResponseEntity.ok(
+                response
+        );
     }
+
+    // =========================================================
+    // MANAGER / DISPATCHER - ASSIGN TECHNICIAN
+    // =========================================================
 
     @PostMapping("/{id}/assign")
-    @PreAuthorize("hasAnyRole('DISPATCHER', 'MANAGER')")
-    public ResponseEntity<WorkOrderResponse> assignTechnician(
-            @PathVariable Long id,
-            @Valid
-            @RequestBody
-            AssignmentRequest request,
-            Authentication authentication) {
+    @PreAuthorize(
+            "hasAnyRole('DISPATCHER', 'MANAGER')"
+    )
+    public ResponseEntity<WorkOrderResponse>
+            assignTechnician(
+                    @PathVariable
+                    Long id,
+
+                    @Valid
+                    @RequestBody
+                    AssignmentRequest request,
+
+                    Authentication authentication) {
 
         User currentUser =
-                getCurrentUser(authentication);
-
-        WorkOrderResponse response =
-                workOrderService.assignTechnician(
-                        id,
-                        request,
-                        currentUser
+                getCurrentUser(
+                        authentication
                 );
 
-        return ResponseEntity.ok(response);
+        WorkOrderResponse response =
+                workOrderService
+                        .assignTechnician(
+                                id,
+                                request,
+                                currentUser
+                        );
+
+        return ResponseEntity.ok(
+                response
+        );
     }
+
+    // =========================================================
+    // TECHNICIAN - MY JOBS
+    // =========================================================
 
     @GetMapping("/my-jobs")
     @PreAuthorize("hasRole('TECHNICIAN')")
-    public ResponseEntity<List<WorkOrderResponse>> getMyJobs(
-            Authentication authentication) {
+    public ResponseEntity<List<WorkOrderResponse>>
+            getMyJobs(
+                    Authentication authentication) {
 
         User currentUser =
-                getCurrentUser(authentication);
+                getCurrentUser(
+                        authentication
+                );
 
         List<WorkOrderResponse> jobs =
                 workOrderService
-                        .getMyAssignedWorkOrders(currentUser);
+                        .getMyAssignedWorkOrders(
+                                currentUser
+                        );
 
-        return ResponseEntity.ok(jobs);
+        return ResponseEntity.ok(
+                jobs
+        );
     }
+
+    // =========================================================
+    // TECHNICIAN / DISPATCHER / MANAGER - GET BY ID
+    // =========================================================
 
     @GetMapping("/{id}")
     @PreAuthorize(
             "hasAnyRole('TECHNICIAN', 'DISPATCHER', 'MANAGER')"
     )
     public ResponseEntity<WorkOrderResponse> getById(
-            @PathVariable Long id) {
+            @PathVariable
+            Long id) {
 
         return ResponseEntity.ok(
-                workOrderService.getById(id)
+                workOrderService.getById(
+                        id
+                )
         );
     }
+
+    // =========================================================
+    // HELPER - GET LOGGED-IN USER
+    // =========================================================
 
     private User getCurrentUser(
             Authentication authentication) {
 
+        if (authentication == null
+                || !authentication.isAuthenticated()) {
+
+            throw new IllegalStateException(
+                    "Authentication is required."
+            );
+        }
+
         return userRepository
-                .findByEmail(authentication.getName())
+                .findByEmail(
+                        authentication.getName()
+                )
                 .orElseThrow(() ->
                         new RuntimeException(
-                                "Logged-in user not found"
+                                "Logged-in user not found."
                         )
                 );
     }

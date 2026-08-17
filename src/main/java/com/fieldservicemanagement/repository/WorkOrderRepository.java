@@ -44,4 +44,8 @@ public interface WorkOrderRepository
     List<WorkOrder> findBySlaDueAtBeforeAndStatusNotIn(
             LocalDateTime currentTime,
             Collection<WorkOrder.Status> excludedStatuses);
+
+    List<WorkOrder> findByCustomerIdOrderByCreatedAtDesc(
+        Long customerId
+);
 }
