@@ -30,11 +30,8 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
 
-    public SecurityConfig(
-            JwtAuthFilter jwtAuthFilter) {
-
-        this.jwtAuthFilter =
-                jwtAuthFilter;
+    public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
+        this.jwtAuthFilter = jwtAuthFilter;
     }
 
     @Bean
@@ -43,36 +40,28 @@ public class SecurityConfig {
     }
 
     @Bean
-    public DaoAuthenticationProvider
-            authenticationProvider(
-                    UserDetailsService userDetailsService,
-                    PasswordEncoder passwordEncoder) {
+    public DaoAuthenticationProvider authenticationProvider(
+            UserDetailsService userDetailsService,
+            PasswordEncoder passwordEncoder) {
 
         DaoAuthenticationProvider provider =
-                new DaoAuthenticationProvider(
-                        userDetailsService
-                );
+                new DaoAuthenticationProvider(userDetailsService);
 
-        provider.setPasswordEncoder(
-                passwordEncoder
-        );
+        provider.setPasswordEncoder(passwordEncoder);
 
         return provider;
     }
 
     @Bean
-    public AuthenticationManager
-            authenticationManager(
-                    AuthenticationConfiguration configuration)
-                    throws Exception {
+    public AuthenticationManager authenticationManager(
+            AuthenticationConfiguration configuration)
+            throws Exception {
 
-        return configuration
-                .getAuthenticationManager();
+        return configuration.getAuthenticationManager();
     }
 
     @Bean
-    public CorsConfigurationSource
-            corsConfigurationSource() {
+    public CorsConfigurationSource corsConfigurationSource() {
 
         CorsConfiguration configuration =
                 new CorsConfiguration();
@@ -80,7 +69,8 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(
                 List.of(
                         "http://localhost:5173",
-                        "http://127.0.0.1:5173"
+                        "http://127.0.0.1:5173",
+                        "https://keystone-field-service-frontend.onrender.com"
                 )
         );
 
@@ -111,13 +101,9 @@ public class SecurityConfig {
                 )
         );
 
-        configuration.setAllowCredentials(
-                true
-        );
+        configuration.setAllowCredentials(true);
 
-        configuration.setMaxAge(
-                3600L
-        );
+        configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source =
                 new UrlBasedCorsConfigurationSource();
@@ -137,13 +123,9 @@ public class SecurityConfig {
             throws Exception {
 
         http
-                .csrf(
-                        AbstractHttpConfigurer::disable
-                )
+                .csrf(AbstractHttpConfigurer::disable)
 
-                .cors(
-                        Customizer.withDefaults()
-                )
+                .cors(Customizer.withDefaults())
 
                 .sessionManagement(
                         session ->
@@ -155,38 +137,33 @@ public class SecurityConfig {
                 .authorizeHttpRequests(
                         auth -> auth
 
-                                // LOGIN + SWAGGER + PROFILE IMAGES
-                               .requestMatchers(
-        "/api/auth/login",
-        "/api/auth/register/customer",
-        "/swagger-ui/**",
-        "/v3/api-docs/**",
-        "/uploads/**"
-)
-.permitAll()
+                                .requestMatchers(
+                                        "/api/auth/login",
+                                        "/api/auth/register/customer",
+                                        "/swagger-ui/**",
+                                        "/v3/api-docs/**",
+                                        "/uploads/**"
+                                )
+                                .permitAll()
 
-                                // CORS PREFLIGHT
                                 .requestMatchers(
                                         HttpMethod.OPTIONS,
                                         "/**"
                                 )
                                 .permitAll()
 
-                                // PROFILE PHOTO UPLOAD
                                 .requestMatchers(
                                         HttpMethod.POST,
                                         "/api/users/me/profile-photo"
                                 )
                                 .authenticated()
 
-                                // PROFILE PHOTO DELETE
                                 .requestMatchers(
                                         HttpMethod.DELETE,
                                         "/api/users/me/profile-photo"
                                 )
                                 .authenticated()
 
-                                // PROFILE
                                 .requestMatchers(
                                         HttpMethod.GET,
                                         "/api/users/me"
@@ -199,7 +176,6 @@ public class SecurityConfig {
                                 )
                                 .authenticated()
 
-                                // CHANGE PASSWORD
                                 .requestMatchers(
                                         HttpMethod.PUT,
                                         "/api/users/change-password"
@@ -210,9 +186,7 @@ public class SecurityConfig {
                                 .authenticated()
                 )
 
-                .authenticationProvider(
-                        authenticationProvider
-                )
+                .authenticationProvider(authenticationProvider)
 
                 .addFilterBefore(
                         jwtAuthFilter,
@@ -222,3 +196,4 @@ public class SecurityConfig {
         return http.build();
     }
 }
+
