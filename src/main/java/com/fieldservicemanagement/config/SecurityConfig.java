@@ -7,7 +7,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -19,7 +18,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import com.fieldservicemanagement.security.JwtAuthFilter;
@@ -61,10 +59,9 @@ public class SecurityConfig {
     }
 
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
+    public UrlBasedCorsConfigurationSource corsConfigurationSource() {
 
-        CorsConfiguration configuration =
-                new CorsConfiguration();
+        CorsConfiguration configuration = new CorsConfiguration();
 
         configuration.setAllowedOrigins(
                 List.of(
@@ -86,19 +83,11 @@ public class SecurityConfig {
         );
 
         configuration.setAllowedHeaders(
-                List.of(
-                        "Authorization",
-                        "Content-Type",
-                        "Accept",
-                        "Origin",
-                        "X-Requested-With"
-                )
+                List.of("*")
         );
 
         configuration.setExposedHeaders(
-                List.of(
-                        "Authorization"
-                )
+                List.of("Authorization")
         );
 
         configuration.setAllowCredentials(true);
@@ -108,10 +97,7 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source =
                 new UrlBasedCorsConfigurationSource();
 
-        source.registerCorsConfiguration(
-                "/**",
-                configuration
-        );
+        source.registerCorsConfiguration("/**", configuration);
 
         return source;
     }
@@ -119,13 +105,16 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(
             HttpSecurity http,
-            DaoAuthenticationProvider authenticationProvider)
+            DaoAuthenticationProvider authenticationProvider,
+            UrlBasedCorsConfigurationSource corsConfigurationSource)
             throws Exception {
 
         http
                 .csrf(AbstractHttpConfigurer::disable)
 
-                .cors(Customizer.withDefaults())
+                .cors(cors ->
+                        cors.configurationSource(corsConfigurationSource)
+                )
 
                 .sessionManagement(
                         session ->
@@ -196,4 +185,3 @@ public class SecurityConfig {
         return http.build();
     }
 }
-
