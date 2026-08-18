@@ -1,20 +1,17 @@
 package com.fieldservicemanagement.service;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.cloudinary.Cloudinary;
+import com.cloudinary.utils.ObjectUtils;
 import com.fieldservicemanagement.dto.ChangePasswordRequest;
 import com.fieldservicemanagement.dto.CreateUserRequest;
 import com.fieldservicemanagement.dto.ManagedUserResponse;
@@ -31,6 +28,10 @@ import com.fieldservicemanagement.repository.WorkOrderRepository;
 @Service
 public class UserService {
 
+    // =========================================================
+    // PROFILE PHOTO CONFIGURATION
+    // =========================================================
+
     private static final long MAX_PROFILE_PHOTO_SIZE =
             5 * 1024 * 1024;
 
@@ -41,24 +42,36 @@ public class UserService {
                     "image/webp"
             );
 
-    private static final Path PROFILE_UPLOAD_DIRECTORY =
-            Paths.get(
-                    "uploads",
-                    "profiles"
+    private static final Set<String> ALLOWED_EXTENSIONS =
+            Set.of(
+                    ".jpg",
+                    ".jpeg",
+                    ".png",
+                    ".webp"
             );
+
+    private static final String CLOUDINARY_PROFILE_FOLDER =
+            "field-service-management/profile-photos";
+
+    // =========================================================
+    // DEPENDENCIES
+    // =========================================================
 
     private final UserRepository userRepository;
     private final WorkOrderRepository workOrderRepository;
     private final PasswordEncoder passwordEncoder;
+    private final Cloudinary cloudinary;
 
     public UserService(
             UserRepository userRepository,
             WorkOrderRepository workOrderRepository,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            Cloudinary cloudinary) {
 
         this.userRepository = userRepository;
         this.workOrderRepository = workOrderRepository;
         this.passwordEncoder = passwordEncoder;
+        this.cloudinary = cloudinary;
     }
 
     // =========================================================
@@ -74,6 +87,10 @@ public class UserService {
 
         return toProfileResponse(user);
     }
+
+    // =========================================================
+    // UPDATE CURRENT PROFILE
+    // =========================================================
 
     @Transactional
     public ProfileResponse updateCurrentProfile(
@@ -129,7 +146,7 @@ public class UserService {
     }
 
     // =========================================================
-    // PROFILE PHOTO
+    // PROFILE PHOTO - CLOUDINARY UPLOAD
     // =========================================================
 
     @Transactional
@@ -142,61 +159,80 @@ public class UserService {
 
         validateProfilePhoto(file);
 
+        String publicId =
+                buildProfilePhotoPublicId(
+                        user.getId()
+                );
+
         try {
 
-            Files.createDirectories(
-                    PROFILE_UPLOAD_DIRECTORY
-            );
+            Map<?, ?> uploadResult =
+                    cloudinary
+                            .uploader()
+                            .upload(
+                                    file.getBytes(),
+                                    ObjectUtils.asMap(
+                                            "public_id",
+                                            publicId,
 
-            String extension =
-                    getExtension(
-                            file.getOriginalFilename()
+                                            "resource_type",
+                                            "image",
+
+                                            "overwrite",
+                                            true,
+
+                                            "invalidate",
+                                            true
+                                    )
+                            );
+
+            Object secureUrlObject =
+                    uploadResult.get(
+                            "secure_url"
                     );
 
-            String fileName =
-                    "user-"
-                            + user.getId()
-                            + "-"
-                            + UUID.randomUUID()
-                            + extension;
+            if (secureUrlObject == null) {
 
-            Path destination =
-                    PROFILE_UPLOAD_DIRECTORY
-                            .resolve(fileName)
-                            .normalize()
-                            .toAbsolutePath();
+                throw new IllegalStateException(
+                        "Cloudinary did not return a secure image URL."
+                );
+            }
 
-            Files.copy(
-                    file.getInputStream(),
-                    destination,
-                    StandardCopyOption.REPLACE_EXISTING
-            );
+            String secureUrl =
+                    secureUrlObject.toString();
 
-            deleteOldProfilePhoto(
-                    user.getProfilePhoto()
-            );
+            if (secureUrl.isBlank()) {
 
-            String photoPath =
-                    "/uploads/profiles/"
-                            + fileName;
+                throw new IllegalStateException(
+                        "Cloudinary returned an empty image URL."
+                );
+            }
 
+            // Store the permanent Cloudinary HTTPS URL
+            // directly in the database.
             user.setProfilePhoto(
-                    photoPath
+                    secureUrl
             );
 
             User savedUser =
                     userRepository.save(user);
 
-            return toProfileResponse(savedUser);
+            return toProfileResponse(
+                    savedUser
+            );
 
-        } catch (IOException exception) {
+        } catch (Exception exception) {
 
             throw new RuntimeException(
-                    "Unable to save profile photo.",
+                    "Unable to upload profile photo to Cloudinary.",
                     exception
             );
         }
     }
+
+    // =========================================================
+    // REMOVE PROFILE PHOTO - CLOUDINARY
+    // =========================================================
 
     @Transactional
     public ProfileResponse removeProfilePhoto(
@@ -205,16 +241,64 @@ public class UserService {
         User user =
                 findUserByEmail(email);
 
-        deleteOldProfilePhoto(
-                user.getProfilePhoto()
-        );
+        String existingPhoto =
+                user.getProfilePhoto();
+
+        /*
+         * Only attempt Cloudinary deletion when the database
+         * currently contains a Cloudinary URL.
+         *
+         * Old /uploads/profiles/... values from your previous
+         * Render-local implementation are simply cleared from
+         * the database because those files may already have
+         * disappeared from Render.
+         */
+        if (existingPhoto != null
+                && !existingPhoto.isBlank()
+                && isCloudinaryUrl(existingPhoto)) {
+
+            String publicId =
+                    buildProfilePhotoPublicId(
+                            user.getId()
+                    );
+
+            try {
+
+                cloudinary
+                        .uploader()
+                        .destroy(
+                                publicId,
+                                ObjectUtils.asMap(
+                                        "resource_type",
+                                        "image",
+                                        "invalidate",
+                                        true
+                                )
+                        );
+
+            } catch (Exception exception) {
+
+                /*
+                 * We do not want a failed Cloudinary deletion
+                 * to leave the user's database profile stuck.
+                 *
+                 * The database value will still be cleared.
+                 */
+                System.err.println(
+                        "Unable to delete old Cloudinary profile photo: "
+                                + exception.getMessage()
+                );
+            }
+        }
 
         user.setProfilePhoto(null);
 
         User savedUser =
                 userRepository.save(user);
 
-        return toProfileResponse(savedUser);
+        return toProfileResponse(
+                savedUser
+        );
     }
 
     // =========================================================
@@ -274,7 +358,8 @@ public class UserService {
      * Manager can view all non-manager user accounts.
      */
     @Transactional(readOnly = true)
-    public List<ManagedUserResponse> getAllManagedUsers() {
+    public List<ManagedUserResponse>
+            getAllManagedUsers() {
 
         return userRepository
                 .findAll()
@@ -301,7 +386,8 @@ public class UserService {
     }
 
     /**
-     * Manager creates Technician / Dispatcher / Customer.
+     * Manager creates Technician /
+     * Dispatcher / Customer.
      */
     @Transactional
     public ManagedUserResponse createManagedUser(
@@ -366,7 +452,8 @@ public class UserService {
     }
 
     /**
-     * Manager edits Technician / Dispatcher / Customer.
+     * Manager edits Technician /
+     * Dispatcher / Customer.
      */
     @Transactional
     public ManagedUserResponse updateManagedUser(
@@ -614,12 +701,7 @@ public class UserService {
                         file.getOriginalFilename()
                 );
 
-        if (!Set.of(
-                ".jpg",
-                ".jpeg",
-                ".png",
-                ".webp"
-        ).contains(
+        if (!ALLOWED_EXTENSIONS.contains(
                 extension.toLowerCase()
         )) {
 
@@ -632,6 +714,44 @@ public class UserService {
     // =========================================================
     // PROFILE PHOTO HELPERS
     // =========================================================
+
+    /**
+     * Cloudinary public ID used for each user's profile photo.
+     *
+     * Example:
+     *
+     * field-service-management/profile-photos/user-5
+     *
+     * Using a fixed public ID for each user means that uploading
+     * a new photo automatically overwrites that user's previous
+     * photo instead of creating unlimited old images.
+     */
+    private String buildProfilePhotoPublicId(
+            Long userId) {
+
+        return CLOUDINARY_PROFILE_FOLDER
+                + "/user-"
+                + userId;
+    }
+
+    /**
+     * Checks whether the existing database value is already
+     * a Cloudinary image URL.
+     */
+    private boolean isCloudinaryUrl(
+            String value) {
+
+        if (value == null) {
+            return false;
+        }
+
+        return value.startsWith(
+                "https://res.cloudinary.com/"
+        )
+                || value.startsWith(
+                        "http://res.cloudinary.com/"
+                );
+    }
 
     private String getExtension(
             String fileName) {
@@ -652,43 +772,6 @@ public class UserService {
         return fileName
                 .substring(index)
                 .toLowerCase();
-    }
-
-    private void deleteOldProfilePhoto(
-            String profilePhotoPath) {
-
-        if (profilePhotoPath == null
-                || profilePhotoPath.isBlank()
-                || !profilePhotoPath.startsWith(
-                        "/uploads/profiles/"
-                )) {
-
-            return;
-        }
-
-        try {
-
-            String oldFileName =
-                    profilePhotoPath.substring(
-                            "/uploads/profiles/"
-                                    .length()
-                    );
-
-            Path oldFile =
-                    PROFILE_UPLOAD_DIRECTORY
-                            .resolve(oldFileName)
-                            .normalize()
-                            .toAbsolutePath();
-
-            Files.deleteIfExists(
-                    oldFile
-            );
-
-        } catch (IOException ignored) {
-
-            // Old profile photo deletion should
-            // not prevent other operations.
-        }
     }
 
     // =========================================================
