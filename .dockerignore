@@ -1,0 +1,13 @@
+.git
+.gitignore
+.vscode
+.idea
+
+target
+
+field-service-frontend/node_modules
+field-service-frontend/dist
+
+*.log
+.DS_Store
+Thumbs.db
