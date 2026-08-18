@@ -2,7 +2,6 @@ package com.fieldservicemanagement.config;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -28,9 +27,6 @@ import com.fieldservicemanagement.security.JwtAuthFilter;
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
-
-    @Value("${app.cors.allowed-origin}")
-    private String allowedOrigin;
 
     public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
         this.jwtAuthFilter = jwtAuthFilter;
@@ -65,13 +61,14 @@ public class SecurityConfig {
     @Bean
     public UrlBasedCorsConfigurationSource corsConfigurationSource() {
 
-        CorsConfiguration configuration = new CorsConfiguration();
+        CorsConfiguration configuration =
+                new CorsConfiguration();
 
         configuration.setAllowedOrigins(
                 List.of(
                         "http://localhost:5173",
                         "http://127.0.0.1:5173",
-                        allowedOrigin
+                        "https://keystone-field-service-frontend.onrender.com"
                 )
         );
 
@@ -86,15 +83,25 @@ public class SecurityConfig {
                 )
         );
 
-        configuration.setAllowedHeaders(List.of("*"));
-        configuration.setExposedHeaders(List.of("Authorization"));
+        configuration.setAllowedHeaders(
+                List.of("*")
+        );
+
+        configuration.setExposedHeaders(
+                List.of("Authorization")
+        );
+
         configuration.setAllowCredentials(true);
+
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source =
                 new UrlBasedCorsConfigurationSource();
 
-        source.registerCorsConfiguration("/**", configuration);
+        source.registerCorsConfiguration(
+                "/**",
+                configuration
+        );
 
         return source;
     }
@@ -107,10 +114,15 @@ public class SecurityConfig {
             throws Exception {
 
         http
-                .csrf(AbstractHttpConfigurer::disable)
+                .csrf(
+                        AbstractHttpConfigurer::disable
+                )
 
-                .cors(cors ->
-                        cors.configurationSource(corsConfigurationSource)
+                .cors(
+                        cors ->
+                                cors.configurationSource(
+                                        corsConfigurationSource
+                                )
                 )
 
                 .sessionManagement(
@@ -123,6 +135,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(
                         auth -> auth
 
+                                // LOGIN, CUSTOMER REGISTRATION,
+                                // SWAGGER AND UPLOADS
                                 .requestMatchers(
                                         "/api/auth/login",
                                         "/api/auth/register/customer",
@@ -132,47 +146,56 @@ public class SecurityConfig {
                                 )
                                 .permitAll()
 
+                                // CORS PREFLIGHT REQUESTS
                                 .requestMatchers(
                                         HttpMethod.OPTIONS,
                                         "/**"
                                 )
                                 .permitAll()
 
+                                // PROFILE PHOTO UPLOAD
                                 .requestMatchers(
                                         HttpMethod.POST,
                                         "/api/users/me/profile-photo"
                                 )
                                 .authenticated()
 
+                                // PROFILE PHOTO DELETE
                                 .requestMatchers(
                                         HttpMethod.DELETE,
                                         "/api/users/me/profile-photo"
                                 )
                                 .authenticated()
 
+                                // GET PROFILE
                                 .requestMatchers(
                                         HttpMethod.GET,
                                         "/api/users/me"
                                 )
                                 .authenticated()
 
+                                // UPDATE PROFILE
                                 .requestMatchers(
                                         HttpMethod.PUT,
                                         "/api/users/me"
                                 )
                                 .authenticated()
 
+                                // CHANGE PASSWORD
                                 .requestMatchers(
                                         HttpMethod.PUT,
                                         "/api/users/change-password"
                                 )
                                 .authenticated()
 
+                                // EVERYTHING ELSE REQUIRES JWT
                                 .anyRequest()
                                 .authenticated()
                 )
 
-                .authenticationProvider(authenticationProvider)
+                .authenticationProvider(
+                        authenticationProvider
+                )
 
                 .addFilterBefore(
                         jwtAuthFilter,
