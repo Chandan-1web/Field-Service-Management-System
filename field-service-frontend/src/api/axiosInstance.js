@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const axiosInstance = axios.create({
-  baseURL: "http://localhost:8081/api",
+  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8081/api",
 });
 
 axiosInstance.interceptors.request.use(
@@ -12,7 +12,6 @@ axiosInstance.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // FormData must not be forced to application/json.
     if (config.data instanceof FormData) {
       delete config.headers["Content-Type"];
     } else {
