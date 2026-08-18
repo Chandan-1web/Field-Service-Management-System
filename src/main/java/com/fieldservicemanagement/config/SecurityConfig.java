@@ -2,6 +2,7 @@ package com.fieldservicemanagement.config;
 
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -27,6 +28,9 @@ import com.fieldservicemanagement.security.JwtAuthFilter;
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+
+    @Value("${app.cors.allowed-origin}")
+    private String allowedOrigin;
 
     public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
         this.jwtAuthFilter = jwtAuthFilter;
@@ -67,7 +71,7 @@ public class SecurityConfig {
                 List.of(
                         "http://localhost:5173",
                         "http://127.0.0.1:5173",
-                        "https://keystone-field-service-frontend.onrender.com"
+                        allowedOrigin
                 )
         );
 
@@ -82,16 +86,9 @@ public class SecurityConfig {
                 )
         );
 
-        configuration.setAllowedHeaders(
-                List.of("*")
-        );
-
-        configuration.setExposedHeaders(
-                List.of("Authorization")
-        );
-
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setExposedHeaders(List.of("Authorization"));
         configuration.setAllowCredentials(true);
-
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source =
