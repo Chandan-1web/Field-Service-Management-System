@@ -35,7 +35,17 @@ import {
   uploadMyProfilePhoto,
 } from "../../services/profileService";
 
-const BACKEND_ORIGIN = "http://localhost:8081";
+// =====================================================
+// BACKEND ORIGIN
+// =====================================================
+
+const BACKEND_ORIGIN = (
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8081/api"
+).replace(/\/api\/?$/, "");
+
+// =====================================================
+// DATE FORMAT
+// =====================================================
 
 function formatDateTime(value) {
   if (!value) {
@@ -54,6 +64,10 @@ function formatDateTime(value) {
   }).format(date);
 }
 
+// =====================================================
+// SKELETON
+// =====================================================
+
 function CustomerProfileSkeleton() {
   return (
     <div className="animate-pulse space-y-6">
@@ -67,6 +81,10 @@ function CustomerProfileSkeleton() {
     </div>
   );
 }
+
+// =====================================================
+// INFO CARD
+// =====================================================
 
 function InfoCard({ title, value, icon: Icon }) {
   return (
@@ -83,6 +101,10 @@ function InfoCard({ title, value, icon: Icon }) {
     </article>
   );
 }
+
+// =====================================================
+// CUSTOMER PROFILE PAGE
+// =====================================================
 
 function CustomerProfilePage() {
   const navigate = useNavigate();
@@ -188,6 +210,7 @@ function CustomerProfilePage() {
     },
     [applyProfile],
   );
+
   useEffect(() => {
     const timerId = window.setTimeout(() => {
       void fetchProfile();
@@ -197,6 +220,7 @@ function CustomerProfilePage() {
       window.clearTimeout(timerId);
     };
   }, [fetchProfile]);
+
   // =====================================================
   // INITIALS
   // =====================================================
@@ -230,7 +254,11 @@ function CustomerProfilePage() {
       return profile.profilePhoto;
     }
 
-    return `${BACKEND_ORIGIN}${profile.profilePhoto}`;
+    const photoPath = profile.profilePhoto.startsWith("/")
+      ? profile.profilePhoto
+      : `/${profile.profilePhoto}`;
+
+    return `${BACKEND_ORIGIN}${photoPath}`;
   }, [profile]);
 
   // =====================================================
@@ -540,9 +568,7 @@ function CustomerProfilePage() {
 
       setPasswordData({
         currentPassword: "",
-
         newPassword: "",
-
         confirmPassword: "",
       });
 

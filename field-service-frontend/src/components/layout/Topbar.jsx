@@ -23,7 +23,9 @@ import {
   markNotificationAsRead,
 } from "../../services/notificationService";
 
-const BACKEND_ORIGIN = "http://localhost:8081";
+const BACKEND_ORIGIN = (
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8081/api"
+).replace(/\/api\/?$/, "");
 
 // =====================================================
 // MANAGER / DISPATCHER SEARCH ITEMS
@@ -355,7 +357,11 @@ function Topbar({ openMobileSidebar }) {
       return profile.profilePhoto;
     }
 
-    return `${BACKEND_ORIGIN}${profile.profilePhoto}`;
+    const photoPath = profile.profilePhoto.startsWith("/")
+      ? profile.profilePhoto
+      : `/${profile.profilePhoto}`;
+
+    return `${BACKEND_ORIGIN}${photoPath}`;
   })();
 
   const displayName = profile?.name || user?.name || "User";
