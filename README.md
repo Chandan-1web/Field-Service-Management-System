@@ -1,94 +1,196 @@
-# Keystone Field Service Management System
+# ⚡ KEYSTONE — Field Service Management Platform
 
-A full-stack Field Service Management System developed as part of the Zidio Development Internship.
+<div align="center">
 
-The application provides a centralized platform for managing customers, service sites, work orders, technicians, inventory, notifications, and field-service operations using role-based access control.
+### A Full-Stack Field Service Management System
+
+**Java • Spring Boot • React • MySQL • JWT • REST API**
+
+Developed as part of the **Zidio Development Internship**
+
+[🌐 Live Application](https://keystone-field-service-frontend.onrender.com) •
+[⚙️ Backend API](https://field-service-management-system.onrender.com)
+
+</div>
+
+---
+
+## 📖 About The Project
+
+**KEYSTONE** is a full-stack Field Service Management Platform designed to
+manage and coordinate field-service operations from a centralized system.
+
+The platform connects **Managers, Dispatchers, Technicians, and Customers**
+through dedicated role-based workspaces.
+
+It supports the complete service lifecycle — from a customer submitting a
+service request, through work-order creation and technician assignment, to
+job completion and operational tracking.
+
+The project was developed as part of the **Zidio Development Internship**
+with a focus on building a secure, scalable, responsive, and production-ready
+full-stack web application.
+
+---
 
 ## 🚀 Live Application
 
-Frontend:
-https://keystone-field-service-frontend.onrender.com
+### Frontend
 
-Backend:
-https://field-service-management-system.onrender.com
+🔗 https://keystone-field-service-frontend.onrender.com
 
-> The application is hosted on Render's free tier. The backend may take some time to respond to the first request after a period of inactivity.
+### Backend
 
----
+🔗 https://field-service-management-system.onrender.com
 
-## 📌 Project Overview
-
-Keystone Field Service Management System is designed to manage the complete lifecycle of field-service operations.
-
-The system supports four different user roles:
-
-- Manager
-- Dispatcher
-- Technician
-- Customer
-
-Each role has its own protected workspace and permissions.
+> **Note:** The application is deployed using Render's free service.
+> The first request may take additional time after a period of inactivity
+> while the service starts.
 
 ---
 
-## 👥 User Roles
+# 📸 Application Screenshots
 
-### Manager
+The following screenshots demonstrate the major modules and workflows
+implemented in KEYSTONE.
 
-The Manager has administrative access to the field-service platform.
+## 🔐 Secure Login
 
-Main capabilities include:
+Role-based authentication provides secure access to the platform.
+
+![KEYSTONE Login](screenshots/login.png)
+
+---
+
+## 📊 Manager Dashboard
+
+The Manager dashboard provides a centralized overview of field-service
+operations and administrative activities.
+
+![Manager Dashboard](screenshots/manager-dashboard.png)
+
+---
+
+## 👨‍💼 Dispatcher Dashboard
+
+Dispatchers can coordinate service operations, manage work orders,
+monitor assignments, and track field activities.
+
+![Dispatcher Dashboard](screenshots/dispatcher-dashboard.png)
+
+---
+
+## 📋 Work Order Management
+
+Dispatchers can view, search, filter, create, and manage work orders
+through the operations workspace.
+
+![Work Orders](screenshots/work-orders.png)
+
+---
+
+## 👨‍🔧 Technician Assignment
+
+Work orders can be assigned to available technicians while viewing their
+current workload and availability.
+
+![Technician Assignment](screenshots/technician-assignment.png)
+
+---
+
+## 👥 Customer Management
+
+The customer workspace enables authorized users to manage customer
+accounts and connected service information.
+
+![Customer Management](screenshots/customers.png)
+
+---
+
+## 📦 Inventory Management
+
+The inventory module tracks spare parts, available stock, inventory value,
+and stock status used for field-service operations.
+
+![Inventory Management](screenshots/inventory.png)
+
+---
+
+## 👤 Profile Management
+
+Users can maintain their account information and profile picture through
+their protected workspace.
+
+![Profile Management](screenshots/profile.png)
+
+---
+
+# 👥 User Roles
+
+KEYSTONE implements four primary user roles with separate permissions and
+protected workspaces.
+
+### 👔 Manager
+
+The Manager has administrative and operational oversight of the platform.
+
+**Capabilities:**
 
 - View management dashboard
 - Manage users
 - Manage technicians
 - Manage dispatchers
 - Manage customers
-- View and manage work orders
+- Monitor work orders
 - Monitor field-service operations
 - Manage inventory
 - View operational information
 - Manage account and profile information
 
-### Dispatcher
+### 🎯 Dispatcher
 
-The Dispatcher coordinates field-service activities.
+The Dispatcher coordinates day-to-day field-service activities.
 
-Main capabilities include:
+**Capabilities:**
 
 - View dispatcher dashboard
-- View customers and service requests
+- Manage customers
+- Manage service sites
 - Create and manage work orders
-- Assign technicians to work orders
+- Assign technicians
 - View technician workload and availability
 - Monitor work-order status
-- Manage operational workflow
+- Manage inventory
+- Coordinate operational workflows
 - Receive notifications
 - Manage profile information
 
-### Technician
+### 🔧 Technician
 
-The Technician handles assigned field-service jobs.
+Technicians handle assigned field-service jobs.
 
-Main capabilities include:
+**Capabilities:**
 
 - View technician dashboard
 - View assigned work orders
+- Access job information
+- Start assigned jobs
 - Update work-order progress
-- Complete assigned service jobs
-- View job information
+- Complete service jobs
 - Receive notifications
 - Manage profile information
 
-### Customer
+### 👤 Customer
 
-Customers can access their own service workspace.
+Customers have their own service workspace.
 
-Main capabilities include:
+**Capabilities:**
 
-- Register and log in
-- View customer dashboard
-- Manage customer profile
+- Register an account
+- Securely log in
+- Access customer dashboard
+- Manage profile information
+- Manage service sites
 - Create service requests
 - View service/work-order information
 - Track service progress
@@ -97,208 +199,377 @@ Main capabilities include:
 
 ---
 
-## 🔄 Work Order Workflow
+# 🔄 Field Service Workflow
 
-The application supports a complete field-service workflow:
-
-Customer Service Request
-↓
+```text
+Customer
+   │
+   ▼
+Service Request
+   │
+   ▼
 Dispatcher Reviews Request
-↓
+   │
+   ▼
 Work Order Created
-↓
+   │
+   ▼
 Technician Assigned
-↓
-Work Order Assigned
-↓
+   │
+   ▼
+Assigned Work Order
+   │
+   ▼
 Technician Starts Work
-↓
+   │
+   ▼
 Work In Progress
-↓
+   │
+   ▼
 Technician Completes Work
-↓
-Work Order Completed
+   │
+   ▼
+Work Order Completed / Closed
+```
 
-The system maintains role-based access throughout the workflow.
-
----
-
-## ✨ Key Features
-
-- JWT-based authentication
-- Role-based authorization
-- Customer registration
-- Secure login
-- Manager dashboard
-- Dispatcher dashboard
-- Technician dashboard
-- Customer dashboard
-- Customer management
-- Site management
-- Technician management
-- Work-order management
-- Technician assignment
-- Technician workload tracking
-- Work-order status management
-- Inventory management
-- Notifications
-- Email notifications
-- User profile management
-- Profile photo upload
-- Persistent cloud profile-photo storage
-- Password management
-- Responsive user interface
-- Protected frontend routes
-- REST API integration
-- Cloud database integration
-- Production deployment
+Role-based authorization is maintained throughout the complete workflow.
 
 ---
 
-## 🛠️ Technologies Used
+# ✨ Key Features
 
-### Backend
+- 🔐 JWT-based authentication
+- 🛡️ Role-based authorization
+- 👤 Customer registration and secure login
+- 📊 Role-specific dashboards
+- 👥 Customer management
+- 📍 Service-site management
+- 👨‍🔧 Technician management
+- 📋 Work-order management
+- 🎯 Technician assignment
+- 📈 Technician workload tracking
+- 🔄 Work-order lifecycle management
+- 📦 Inventory and spare-parts management
+- 🔔 In-app notifications
+- 📧 Email notifications
+- 👤 User profile management
+- 🖼️ Cloud-based profile-photo storage
+- 🔑 Password management
+- 🔒 Protected frontend routes
+- 🌐 REST API integration
+- ☁️ Cloud database integration
+- 📱 Responsive user interface
+- 🚀 Production deployment
 
-- Java
-- Spring Boot
-- Spring Security
+---
+
+# 🛠️ Technology Stack
+
+## Backend
+
+| Technology | Purpose |
+|---|---|
+| Java | Backend programming language |
+| Spring Boot | Backend application framework |
+| Spring Security | Authentication and authorization |
+| Spring Data JPA | Database persistence |
+| Hibernate | ORM |
+| REST APIs | Frontend/backend communication |
+| JWT | Stateless authentication |
+| Maven | Dependency and build management |
+
+## Frontend
+
+| Technology | Purpose |
+|---|---|
+| React | User-interface development |
+| Vite | Frontend development/build tooling |
+| JavaScript | Frontend programming |
+| HTML5 | Application structure |
+| CSS3 | Styling and responsive design |
+| Axios | REST API communication |
+| React Router | Routing and protected navigation |
+
+## Database & Cloud
+
+| Technology | Purpose |
+|---|---|
+| MySQL | Relational database |
+| Aiven | Production MySQL hosting |
+| Render | Application deployment |
+| Cloudinary | Persistent profile-image storage |
+| Git | Version control |
+| GitHub | Source-code hosting |
+
+---
+
+# 🔐 Authentication & Authorization
+
+KEYSTONE uses **JWT-based authentication** together with **Spring Security**.
+
+After successful authentication, users are granted access according to
+their assigned role.
+
+```text
+ROLE_MANAGER
+ROLE_DISPATCHER
+ROLE_TECHNICIAN
+ROLE_CUSTOMER
+```
+
+Backend endpoints are protected using role-based authorization.
+
+The React frontend also implements protected routes so users cannot access
+workspaces that do not belong to their role.
+
+---
+
+# 🏗️ System Architecture
+
+```text
+┌──────────────────────────────┐
+│        React Frontend        │
+│       Deployed on Render     │
+└──────────────┬───────────────┘
+               │
+               │ REST API / JWT
+               ▼
+┌──────────────────────────────┐
+│     Spring Boot Backend      │
+│       Deployed on Render     │
+└──────────┬───────────┬───────┘
+           │           │
+           │           │ Profile Images
+           │           ▼
+           │    ┌───────────────┐
+           │    │  Cloudinary   │
+           │    └───────────────┘
+           │
+           │ JPA / Hibernate
+           ▼
+┌──────────────────────────────┐
+│       Aiven MySQL DB         │
+└──────────────────────────────┘
+```
+
+The React frontend communicates with the Spring Boot backend through
+REST APIs. Authentication is handled using JWT tokens, while application
+data is persisted in the cloud-hosted MySQL database.
+
+---
+
+# 🗄️ Database
+
+The production application uses a cloud-hosted **MySQL database on Aiven**.
+
+Database integration is implemented using:
+
 - Spring Data JPA
-- Hibernate
-- REST APIs
-- JWT Authentication
-- Maven
+- Hibernate ORM
+- MySQL Connector
+- Database migrations
+- Environment-based production configuration
 
-### Frontend
-
-- React
-- Vite
-- JavaScript
-- HTML5
-- CSS3
-- Axios
-- React Router
-
-### Database
-
-- MySQL
-- Aiven Cloud MySQL
-
-### Cloud & Deployment
-
-- Render
-- Cloudinary
-- Git
-- GitHub
+Sensitive production credentials are configured using environment
+variables and should not be committed to the public repository.
 
 ---
 
-## 🔐 Authentication & Security
+# 🖼️ Cloud Profile Photo Storage
 
-The application uses JWT-based authentication.
+Profile pictures are stored using **Cloudinary** instead of the local
+application filesystem.
 
-Protected backend endpoints are secured using Spring Security and role-based authorization.
+This allows uploaded profile pictures to remain accessible across:
 
-Roles include:
-
-- `ROLE_MANAGER`
-- `ROLE_DISPATCHER`
-- `ROLE_TECHNICIAN`
-- `ROLE_CUSTOMER`
-
-The frontend also contains protected routes to prevent unauthorized users from accessing restricted pages.
-
----
-
-## 🖼️ Profile Photo Storage
-
-Profile photos are stored using Cloudinary.
-
-This allows uploaded profile photos to remain available across:
-
+- Browser sessions
 - Different devices
-- Different browser sessions
-- Application restarts
-- Backend redeployments
+- Backend restarts
+- Application redeployments
 
-Only the profile-photo URL is stored with the user's profile information.
+The application stores the resulting image URL with the user's profile
+information.
 
 ---
 
-## 🔔 Notifications
+# 🔔 Notification System
 
-The system provides notifications for important field-service events such as:
+KEYSTONE provides notifications for important field-service activities,
+including events such as:
 
 - Work-order creation
 - Technician assignment
 - Work-order status changes
 - Work-order completion
 
-Email notifications are processed asynchronously to reduce delays in important application operations.
+Email processing is handled asynchronously where applicable so that
+email delivery does not unnecessarily block important application
+operations.
 
 ---
 
-## 🗄️ Database
-
-The production application uses a cloud-hosted MySQL database.
-
-Database technology:
-
-- MySQL
-- Spring Data JPA
-- Hibernate ORM
-- Aiven Cloud Database
-
-Sensitive database credentials are configured using environment variables and are not stored directly in the public repository.
-
----
-
-## 🌐 Deployment Architecture
-
-The production system uses the following architecture:
-
-React Frontend
-↓
-Render
-↓
-Spring Boot REST API
-↓
-Aiven MySQL Database
-
-Profile Images
-↓
-Cloudinary
-
-The frontend communicates with the backend using REST APIs.
-
----
-
-## 📂 Project Structure
+# 📂 Project Structure
 
 ```text
-fieldservicemanagement/
+Field-Service-Management-System/
 │
 ├── field-service-frontend/
-│   ├── src/
 │   ├── public/
+│   ├── src/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   ├── services/
+│   │   └── ...
 │   ├── package.json
 │   └── vite.config.js
 │
 ├── src/
-│   ├── main/
-│   │   ├── java/
-│   │   │   └── com/fieldservicemanagement/
-│   │   │       ├── config/
-│   │   │       ├── controller/
-│   │   │       ├── dto/
-│   │   │       ├── entity/
-│   │   │       ├── exception/
-│   │   │       ├── repository/
-│   │   │       ├── security/
-│   │   │       └── service/
-│   │   │
-│   │   └── resources/
-│   │       └── application.properties
+│   └── main/
+│       ├── java/
+│       │   └── com/fieldservicemanagement/
+│       │       ├── config/
+│       │       ├── controller/
+│       │       ├── dto/
+│       │       ├── entity/
+│       │       ├── exception/
+│       │       ├── repository/
+│       │       ├── security/
+│       │       └── service/
+│       │
+│       └── resources/
 │
+├── screenshots/
+│   ├── login.png
+│   ├── manager-dashboard.png
+│   ├── dispatcher-dashboard.png
+│   ├── work-orders.png
+│   ├── technician-assignment.png
+│   ├── customers.png
+│   ├── inventory.png
+│   └── profile.png
+│
+├── Dockerfile
 ├── pom.xml
 └── README.md
 ```
+
+---
+
+# 🌐 Deployment
+
+The production application is deployed using a cloud-based architecture.
+
+```text
+React Frontend
+      │
+      ▼
+    Render
+      │
+      ▼
+Spring Boot REST API
+      │
+      ├──────────────► Cloudinary
+      │
+      ▼
+Aiven MySQL Database
+```
+
+### Production Services
+
+**Frontend:**  
+https://keystone-field-service-frontend.onrender.com
+
+**Backend:**  
+https://field-service-management-system.onrender.com
+
+---
+
+# 🧪 Testing
+
+The application was tested across the major role-based workflows.
+
+Testing included:
+
+- Authentication testing
+- Authorization testing
+- REST API testing
+- Customer workflow testing
+- Dispatcher workflow testing
+- Technician workflow testing
+- Manager workflow testing
+- Work-order lifecycle testing
+- Technician assignment testing
+- Inventory operation testing
+- Profile management testing
+- Frontend/backend integration testing
+- Production deployment testing
+
+---
+
+# 📚 Key Learning Outcomes
+
+Developing KEYSTONE provided practical experience in:
+
+- Designing a full-stack application
+- Developing REST APIs with Spring Boot
+- Building responsive interfaces with React
+- Implementing JWT authentication
+- Implementing role-based authorization
+- Integrating frontend and backend applications
+- Designing relational database workflows
+- Managing field-service business logic
+- Implementing cloud-based image storage
+- Debugging frontend/backend integration issues
+- Working with environment variables
+- Deploying full-stack applications to cloud platforms
+- Managing production database connectivity
+- Using Git and GitHub for version control
+
+---
+
+# 🔮 Future Enhancements
+
+Potential future improvements include:
+
+- Real-time technician location tracking
+- Route optimization
+- Advanced reporting and analytics
+- Customer feedback and rating system
+- Mobile application support
+- Real-time notification delivery
+- Advanced SLA analytics
+- Predictive maintenance
+- Automated technician scheduling
+
+---
+
+# 🎓 Internship Project
+
+This project was developed as part of the **Zidio Development Internship**.
+
+The objective was to gain practical full-stack development experience by
+designing, implementing, testing, and deploying a real-world Field Service
+Management application.
+
+---
+
+# 👨‍💻 Developer
+
+**Chandan K**
+
+Java Full Stack Developer
+
+**Project:** KEYSTONE — Field Service Management Platform  
+**Internship:** Zidio Development
+
+---
+
+<div align="center">
+
+### ⭐ KEYSTONE Field Service Management Platform
+
+**Built with Java, Spring Boot, React & MySQL**
+
+From service request to successful field-service completion.
+
+</div>
